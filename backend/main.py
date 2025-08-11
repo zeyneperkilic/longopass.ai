@@ -7,9 +7,9 @@ import json, time
 from .config import ALLOWED_ORIGINS, CHAT_HISTORY_MAX, FREE_ANALYZE_LIMIT, DAILY_CHAT_LIMIT
 from .db import Base, engine, SessionLocal, User, Conversation, Message, MessageMeta
 from .auth import get_db, get_or_create_user
-from .schemas import AnalyzePayload, LabBatchPayload, ChatStartResponse, ChatMessageRequest, ChatResponse, AnalyzeResponse
+from .schemas import AnalyzePayload, LabBatchPayload, ChatStartResponse, ChatMessageRequest, ChatResponse, AnalyzeResponse, QuizRequest, QuizResponse
 from .health_guard import guard_or_message
-from .orchestrator import cascade_chat, finalize_text, cascade_analyze, finalize_analyze
+from .orchestrator import cascade_chat, finalize_text, cascade_analyze, finalize_analyze, parallel_quiz_analyze
 from .utils import parse_json_safe
 
 app = FastAPI(title="Longopass AI Gateway")
@@ -128,8 +128,8 @@ def count_user_analyses(db: Session, user_id: int) -> int:
     # Count 'analyze' requests stored as system messages tagged? Simpler: count assistant messages with model_name like 'analyze'
     return db.query(Message).filter(Message.user_id==user_id, Message.role=="assistant", Message.model_name=="analyze").count()
 
-@app.post("/ai/quiz", response_model=AnalyzeResponse)
-def analyze_quiz(body: AnalyzePayload,
+@app.post("/ai/quiz", response_model=QuizResponse)
+def analyze_quiz(body: QuizRequest,
                  db: Session = Depends(get_db),
                  x_user_id: str | None = Header(default=None),
                  x_user_plan: str | None = Header(default=None)):
@@ -137,16 +137,19 @@ def analyze_quiz(body: AnalyzePayload,
     if user.plan == "free" and count_user_analyses(db, user.id) >= FREE_ANALYZE_LIMIT:
         raise HTTPException(403, "Ücretsiz kullanıcılar yalnızca bir kez analiz yapabilir. Premium'a yükseltin.")
 
-    ok, msg = guard_or_message(json.dumps(body.payload))
+    # Convert quiz answers to dict for health guard
+    quiz_dict = body.answers.model_dump()
+    ok, msg = guard_or_message(json.dumps(quiz_dict))
     if not ok:
         raise HTTPException(400, msg)
 
-    res = cascade_analyze(body.payload)
-    # Temporarily bypass finalize_analyze to debug
+    # Use parallel quiz analysis
+    res = parallel_quiz_analyze(quiz_dict)
     final_json = res["content"]
     data = parse_json_safe(final_json) or {}
-    # store as assistant analyze
-    db.add(Message(user_id=user.id, conversation_id=None, role="assistant", content=final_json, model_name="analyze"))
+    
+    # Store quiz result
+    db.add(Message(user_id=user.id, conversation_id=None, role="assistant", content=final_json, model_name="quiz"))
     db.commit()
     return data
 

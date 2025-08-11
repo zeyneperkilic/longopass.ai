@@ -162,3 +162,166 @@ def finalize_analyze(json_text: str) -> str:
     ]
     final = call_chat_model(SYNTHESIS_MODEL, messages, temperature=0.0, max_tokens=900)
     return final["content"]
+
+def build_quiz_prompt(quiz_answers: Dict[str, Any]) -> List[Dict[str, str]]:
+    """Build prompt for quiz analysis and supplement recommendations"""
+    
+    # Extract key information from quiz answers
+    profile = []
+    if quiz_answers.get("age_range"):
+        profile.append(f"Yaş: {quiz_answers['age_range']}")
+    if quiz_answers.get("gender"):
+        profile.append(f"Cinsiyet: {quiz_answers['gender']}")
+    if quiz_answers.get("sleep_pattern"):
+        profile.append(f"Uyku düzeni: {quiz_answers['sleep_pattern']}")
+    if quiz_answers.get("sleep_hours"):
+        profile.append(f"Uyku saati: {quiz_answers['sleep_hours']}")
+    if quiz_answers.get("nutrition_type"):
+        profile.append(f"Beslenme türü: {quiz_answers['nutrition_type']}")
+    if quiz_answers.get("exercise_frequency"):
+        profile.append(f"Egzersiz sıklığı: {quiz_answers['exercise_frequency']}")
+    if quiz_answers.get("stress_level"):
+        profile.append(f"Stres seviyesi: {quiz_answers['stress_level']}")
+    if quiz_answers.get("allergies"):
+        profile.append(f"Alerjiler: {', '.join(quiz_answers['allergies'])}")
+    if quiz_answers.get("health_goals"):
+        profile.append(f"Sağlık hedefleri: {', '.join(quiz_answers['health_goals'])}")
+    if quiz_answers.get("existing_supplements"):
+        profile.append(f"Kullandığı takviyeler: {', '.join(quiz_answers['existing_supplements'])}")
+    
+    user_profile = "\n".join(profile)
+    
+    schema = (
+        "STRICT JSON ŞEMASI - SUPPLEMENT ÖNERİLERİ:\n"
+        "{\n"
+        '  "nutrition_advice": {\n'
+        '    "title": "Beslenme Önerileri",\n'
+        '    "recommendations": ["Öneri 1", "Öneri 2", "Öneri 3"]\n'
+        "  },\n"
+        '  "lifestyle_advice": {\n'
+        '    "title": "Yaşam Tarzı Önerileri",\n'
+        '    "recommendations": ["Öneri 1", "Öneri 2", "Öneri 3"]\n'
+        "  },\n"
+        '  "general_warnings": {\n'
+        '    "title": "Genel Uyarılar",\n'
+        '    "warnings": ["Uyarı 1", "Uyarı 2", "Uyarı 3"]\n'
+        "  },\n"
+        '  "supplement_recommendations": [\n'
+        "    {\n"
+        '      "name": "Vitamin D",\n'
+        '      "description": "Kemik sağlığı, bağışıklık sistemi için önemli",\n'
+        '      "daily_dose": "600-800 IU (doktorunuza danışın)",\n'
+        '      "benefits": ["Kalsiyum emilimini artırır", "Bağışıklık güçlendirir"],\n'
+        '      "warnings": ["Yüksek dozlarda toksik olabilir"],\n'
+        '      "priority": "high"\n'
+        "    }\n"
+        "  ]\n"
+        "}\n\n"
+        "SADECE VE SADECE bu JSON formatında yanıt ver. Hiçbir açıklama, metin ekleme."
+    )
+    
+    system_prompt = (
+        SYSTEM_HEALTH + " Sen bir supplement uzmanısın. "
+        "Kullanıcının quiz cevaplarına göre beslenme önerileri, yaşam tarzı önerileri ve "
+        "uygun supplement önerileri yap. E-ticaret sitesi için ürün önerileri hazırlıyorsun."
+    )
+    
+    user_prompt = f"Kullanıcı profili:\n{user_profile}\n\n{schema}"
+    
+    return [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt}
+    ]
+
+def parallel_quiz_analyze(quiz_answers: Dict[str, Any]) -> Dict[str, Any]:
+    """Run quiz analysis with parallel LLMs and synthesis"""
+    try:
+        messages = build_quiz_prompt(quiz_answers)
+        
+        # Step 1: Call multiple models in parallel
+        responses = []
+        with ThreadPoolExecutor(max_workers=len(PARALLEL_MODELS)) as executor:
+            future_to_model = {
+                executor.submit(call_chat_model, model, messages, 0.2, 1500): model 
+                for model in PARALLEL_MODELS
+            }
+            
+            for future in as_completed(future_to_model):
+                model = future_to_model[future]
+                try:
+                    result = future.result()
+                    # For quiz, we want any valid JSON response
+                    if result["content"].strip():
+                        responses.append({
+                            "model": model,
+                            "response": result["content"]
+                        })
+                except Exception as e:
+                    print(f"Quiz model {model} failed: {e}")
+                    continue
+        
+        # Step 2: If no responses, fallback
+        if not responses:
+            print("All quiz models failed, fallback to single model")
+            return quiz_fallback(quiz_answers)
+        
+        # Step 3: Synthesize with GPT-5 for quiz
+        synthesis_prompt = build_quiz_synthesis_prompt(responses)
+        final_result = call_chat_model(SYNTHESIS_MODEL, synthesis_prompt, temperature=0.1, max_tokens=2000)
+        
+        final_result["models_used"] = [r["model"] for r in responses]
+        final_result["synthesis_model"] = SYNTHESIS_MODEL
+        return final_result
+        
+    except Exception as e:
+        print(f"Quiz parallel analyze failed: {e}")
+        return quiz_fallback(quiz_answers)
+
+def build_quiz_synthesis_prompt(responses: List[Dict[str, str]]) -> List[Dict[str, str]]:
+    """Build synthesis prompt for quiz recommendations"""
+    system_prompt = (
+        SYSTEM_HEALTH + " Sen bir synthesis uzmanısın. "
+        "Birden fazla AI modelin verdiği supplement önerilerini inceleyip, "
+        "en doğru, tutarlı ve kullanışlı bir FINAL quiz sonucu üret. "
+        "\n\nKurallar:"
+        "\n1. SADECE JSON formatında yanıt ver"
+        "\n2. En uygun supplement önerilerini birleştir"
+        "\n3. Çelişkili önerilerde en güvenli olanı seç"
+        "\n4. Beslenme ve yaşam tarzı önerilerini de kapsamlı yap"
+        "\n5. Dozaj önerilerinde 'doktorunuza danışın' ekle"
+        "\n6. Priority: high/medium/low olarak belirle"
+    )
+    
+    responses_text = "\n\n=== MODEL RESPONSES ===\n"
+    for i, resp in enumerate(responses, 1):
+        responses_text += f"\nMODEL {i} ({resp['model']}):\n{resp['response']}\n"
+    
+    responses_text += "\n=== SYNTHESIS GÖREV ===\n"
+    responses_text += (
+        "Yukarıdaki supplement önerilerini analiz et ve en iyi quiz sonucunu oluştur. "
+        "E-ticaret sitesi için uygun ürün önerileri hazırla."
+    )
+    
+    return [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": responses_text}
+    ]
+
+def quiz_fallback(quiz_answers: Dict[str, Any]) -> Dict[str, Any]:
+    """Fallback quiz analysis if parallel fails"""
+    messages = build_quiz_prompt(quiz_answers)
+    for model in PARALLEL_MODELS:
+        try:
+            res = call_chat_model(model, messages, temperature=0.2, max_tokens=1500)
+            if res["content"].strip():
+                res["model_used"] = model
+                return res
+        except Exception as e:
+            print(f"Quiz fallback model {model} failed: {e}")
+            continue
+    
+    # Ultimate fallback
+    return {
+        "content": '{"error": "Quiz analizi şu anda kullanılamıyor"}',
+        "model_used": "fallback"
+    }
