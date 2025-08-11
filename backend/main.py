@@ -26,6 +26,10 @@ app.add_middleware(
 # Serve widget js and static frontend (optional)
 app.mount("/static", StaticFiles(directory="frontend"), name="static")
 
+@app.get("/health")
+def health_check():
+    return {"status": "ok", "service": "longopass-ai"}
+
 @app.get("/widget.js")
 def widget_js():
     with open("frontend/widget.js", "r", encoding="utf-8") as f:

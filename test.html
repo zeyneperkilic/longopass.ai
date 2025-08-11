@@ -46,7 +46,8 @@
 
     <script>
         // API configuration
-        const API_BASE = window.location.origin;
+        // const API_BASE = window.location.origin; // Auto-detect (for same domain)
+        const API_BASE = 'https://longopass-ai.onrender.com'; // Your actual Render URL
         document.getElementById('api-base').textContent = API_BASE;
         
         // Configure widget
