@@ -1,4 +1,5 @@
 from typing import List, Dict, Any
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from .config import CASCADE_MODELS, FINALIZER_MODEL
 from .openrouter_client import call_chat_model
 from .utils import is_valid_chat, is_valid_analyze, parse_json_safe
@@ -57,11 +58,84 @@ def build_analyze_prompt(payload: Dict[str, Any]) -> List[Dict[str, str]]:
         {"role": "user", "content": user + "\n\n" + schema}
     ]
 
-def cascade_analyze(payload: Dict[str, Any]) -> Dict[str, Any]:
+def build_synthesis_prompt(responses: List[Dict[str, str]]) -> List[Dict[str, str]]:
+    """Build prompt for GPT-5 to synthesize multiple model responses"""
+    system_prompt = (
+        SYSTEM_HEALTH + " Sen bir synthesis uzmanısın. "
+        "Birden fazla AI modelin verdiği analiz sonuçlarını inceleyip, "
+        "en doğru, tutarlı ve faydalı bir FINAL sonuç üret. "
+        "\n\nKurallar:"
+        "\n1. SADECE JSON formatında yanıt ver"
+        "\n2. En tutarlı önerileri birleştir"
+        "\n3. Çelişkili önerilerde en mantıklı olanı seç"
+        "\n4. Analysis kısmını en kapsamlı şekilde yaz"
+        "\n5. Risk level'ı en doğru şekilde değerlendir"
+        "\n6. Tekrarlayan önerileri birleştir"
+    )
+    
+    # Format all responses for comparison
+    responses_text = "\n\n=== MODEL RESPONSES ===\n"
+    for i, resp in enumerate(responses, 1):
+        responses_text += f"\nMODEL {i} ({resp['model']}):\n{resp['response']}\n"
+    
+    responses_text += "\n=== SYNTHESIS GÖREV ===\n"
+    responses_text += (
+        "Yukarıdaki tüm model yanıtlarını analiz et ve tek bir tutarlı JSON oluştur. "
+        "En iyi önerileri birleştir, analysis'i geliştir, risk değerlendirmesini optimize et."
+    )
+    
+    return [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": responses_text}
+    ]
+
+def parallel_analyze(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Run multiple LLMs in parallel, then synthesize results with GPT-5"""
+    messages = build_analyze_prompt(payload)
+    
+    # Step 1: Call multiple models in parallel
+    responses = []
+    with ThreadPoolExecutor(max_workers=len(CASCADE_MODELS)) as executor:
+        # Submit all model calls simultaneously
+        future_to_model = {
+            executor.submit(call_chat_model, model, messages, 0.3, 1200): model 
+            for model in CASCADE_MODELS
+        }
+        
+        # Collect valid responses
+        for future in as_completed(future_to_model):
+            model = future_to_model[future]
+            try:
+                result = future.result()
+                ok, _ = is_valid_analyze(result["content"])
+                if ok:
+                    responses.append({
+                        "model": model,
+                        "response": result["content"]
+                    })
+            except Exception as e:
+                print(f"Model {model} failed: {e}")
+                continue
+    
+    # Step 2: If no valid responses, fallback to single model
+    if not responses:
+        print("All parallel models failed, falling back to single model")
+        return cascade_analyze_fallback(payload)
+    
+    # Step 3: Synthesize with GPT-5
+    synthesis_prompt = build_synthesis_prompt(responses)
+    final_result = call_chat_model(FINALIZER_MODEL, synthesis_prompt, temperature=0.1, max_tokens=1500)
+    
+    final_result["models_used"] = [r["model"] for r in responses]
+    final_result["synthesis_model"] = FINALIZER_MODEL
+    return final_result
+
+def cascade_analyze_fallback(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Fallback to sequential cascade if parallel fails"""
     messages = build_analyze_prompt(payload)
     last = None
     for model in CASCADE_MODELS:
-        res = call_chat_model(model, messages, temperature=0.3, max_tokens=2000)
+        res = call_chat_model(model, messages, temperature=0.3, max_tokens=1200)
         last = res
         ok, _ = is_valid_analyze(res["content"])
         if ok:
@@ -69,6 +143,10 @@ def cascade_analyze(payload: Dict[str, Any]) -> Dict[str, Any]:
             return res
     last["model_used"] = CASCADE_MODELS[-1]
     return last
+
+# Keep old function for backward compatibility
+def cascade_analyze(payload: Dict[str, Any]) -> Dict[str, Any]:
+    return parallel_analyze(payload)
 
 def finalize_analyze(json_text: str) -> str:
     # Keep JSON shape; dedupe/order; no new items
