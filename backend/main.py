@@ -175,21 +175,35 @@ def debug_analyze():
     from .orchestrator import build_analyze_prompt
     from .openrouter_client import call_chat_model
     from .config import CASCADE_MODELS
+    import traceback
     
     test_payload = {"belirtiler": "Yorgunluk, saç dökülmesi, konsantrasyon problemi"}
     messages = build_analyze_prompt(test_payload)
     
     # Test first model in cascade
     model = CASCADE_MODELS[0] 
-    res = call_chat_model(model, messages, temperature=0.3, max_tokens=900)
     
-    from .utils import is_valid_analyze
-    is_valid, error = is_valid_analyze(res["content"])
-    
-    return {
-        "model": model,
-        "raw_response": res["content"], 
-        "is_valid": is_valid,
-        "validation_error": error,
-        "parsed": parse_json_safe(res["content"])
-    }
+    try:
+        res = call_chat_model(model, messages, temperature=0.3, max_tokens=900)
+        
+        from .utils import is_valid_analyze
+        is_valid, error = is_valid_analyze(res["content"])
+        
+        return {
+            "model": model,
+            "messages_sent": messages,
+            "full_openrouter_response": res,
+            "raw_response": res["content"], 
+            "is_valid": is_valid,
+            "validation_error": error,
+            "parsed": parse_json_safe(res["content"]),
+            "success": True
+        }
+    except Exception as e:
+        return {
+            "model": model,
+            "messages_sent": messages,
+            "error": str(e),
+            "traceback": traceback.format_exc(),
+            "success": False
+        }
