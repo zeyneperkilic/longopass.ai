@@ -87,14 +87,19 @@ def guard_or_message(text: str) -> Tuple[bool, str]:
     if is_health_topic(text):
         return True, ""
 
-    # Hybrid: fallback to LLM if rules inconclusive
+    # Hybrid: fallback to LLM if rules inconclusive, then to keyword-based check
     if mode == "hybrid":
         try:
             label = classify_topic_llm(text)
             if label in ("HEALTH", "AMBIGUOUS"):
                 return True, ""
+            elif label == "NON_HEALTH":
+                return False, "Üzgünüm, Longopass AI yalnızca sağlık ve supplement konularında yardımcı olabilir."
         except Exception:
-            pass
+            # LLM failed, fallback to keyword-based check
+            if is_health_topic_keyword_based(text):
+                return True, ""
+    
     return False, "Üzgünüm, Longopass AI yalnızca sağlık ve supplement konularında yardımcı olabilir."
 
 
