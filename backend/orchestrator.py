@@ -71,6 +71,7 @@ def build_synthesis_prompt(responses: List[Dict[str, str]]) -> List[Dict[str, st
         "\n4. Analysis kısmını en kapsamlı şekilde yaz"
         "\n5. Risk level'ı en doğru şekilde değerlendir"
         "\n6. Tekrarlayan önerileri birleştir"
+        "\n7. ÖNEMLI: Her öneri için 'source' alanı MUTLAKA 'consensus' olmalı"
     )
     
     # Format all responses for comparison
