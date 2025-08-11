@@ -184,7 +184,7 @@ def debug_analyze():
     model = CASCADE_MODELS[0] 
     
     try:
-        res = call_chat_model(model, messages, temperature=0.3, max_tokens=900)
+        res = call_chat_model(model, messages, temperature=0.3, max_tokens=2000)
         
         from .utils import is_valid_analyze
         is_valid, error = is_valid_analyze(res["content"])

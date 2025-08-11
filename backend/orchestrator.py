@@ -61,7 +61,7 @@ def cascade_analyze(payload: Dict[str, Any]) -> Dict[str, Any]:
     messages = build_analyze_prompt(payload)
     last = None
     for model in CASCADE_MODELS:
-        res = call_chat_model(model, messages, temperature=0.3, max_tokens=900)
+        res = call_chat_model(model, messages, temperature=0.3, max_tokens=2000)
         last = res
         ok, _ = is_valid_analyze(res["content"])
         if ok:
