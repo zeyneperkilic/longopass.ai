@@ -37,6 +37,6 @@ RETENTION_DAYS = int(os.getenv("RETENTION_DAYS", "365"))
 PRESCRIPTION_BLOCK = os.getenv("PRESCRIPTION_BLOCK", "true").lower() == "true"
 DAILY_CHAT_LIMIT = int(os.getenv("DAILY_CHAT_LIMIT", "100"))
 
-# Health moderation via LLM (optional, used when HEALTH_MODE=hybrid)
-MODERATION_MODEL = os.getenv("MODERATION_MODEL", "meta-llama/llama-3.1-8b-instruct")
-MODERATION_TIMEOUT_MS = int(os.getenv("MODERATION_TIMEOUT_MS", "2000"))
+# Health moderation via LLM (stable, fast model for topic classification)
+MODERATION_MODEL = os.getenv("MODERATION_MODEL", "google/gemini-2.5-flash")
+MODERATION_TIMEOUT_MS = int(os.getenv("MODERATION_TIMEOUT_MS", "3000"))

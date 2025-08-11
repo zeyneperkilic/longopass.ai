@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Longopass AI - Test Sayfası</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f7fa;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        h2 {
+            color: #34495e;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+        .test-section {
+            margin-bottom: 40px;
+        }
+        .input-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e6ed;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+        button {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+        }
+        button:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .response {
+            background: #ecf0f1;
+            border-left: 4px solid #3498db;
+            padding: 20px;
+            margin-top: 20px;
+            border-radius: 0 8px 8px 0;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .error {
+            background: #fadbd8;
+            border-left-color: #e74c3c;
+            color: #c0392b;
+        }
+        .success {
+            background: #d5f4e6;
+            border-left-color: #27ae60;
+            color: #196f3d;
+        }
+        .loading {
+            display: inline-block;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>🧬 Longopass AI - Test Dashboard</h1>
+    
+    <div class="grid">
+        <!-- Chat Test -->
+        <div class="container">
+            <div class="test-section">
+                <h2>💬 Chat Sistemi</h2>
+                <div class="input-group">
+                    <label>Kullanıcı ID:</label>
+                    <input type="text" id="chatUserId" value="test-user-html" />
+                </div>
+                <div class="input-group">
+                    <label>Plan:</label>
+                    <select id="chatPlan">
+                        <option value="premium">Premium</option>
+                        <option value="free">Free</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>Mesaj:</label>
+                    <textarea id="chatMessage" rows="3" placeholder="D vitamini eksikliği belirtileri nelerdir?"></textarea>
+                </div>
+                <button onclick="testChat()" id="chatBtn">🚀 Chat Test</button>
+                <div id="chatResponse" class="response" style="display:none;"></div>
+            </div>
+        </div>
+
+        <!-- Quiz Test -->
+        <div class="container">
+            <div class="test-section">
+                <h2>🧪 Quiz Analizi</h2>
+                <div class="input-group">
+                    <label>Yaş Aralığı:</label>
+                    <select id="ageRange">
+                        <option value="26-35">26-35</option>
+                        <option value="18-25">18-25</option>
+                        <option value="36-45">36-45</option>
+                        <option value="46-60">46-60</option>
+                        <option value="60+">60+</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>Cinsiyet:</label>
+                    <select id="gender">
+                        <option value="kadın">Kadın</option>
+                        <option value="erkek">Erkek</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>Sağlık Hedefleri:</label>
+                    <input type="text" id="healthGoals" value="enerji, stres_yönetimi" placeholder="enerji, stres_yönetimi" />
+                </div>
+                <button onclick="testQuiz()" id="quizBtn">🧬 Quiz Test</button>
+                <div id="quizResponse" class="response" style="display:none;"></div>
+            </div>
+        </div>
+
+        <!-- Lab Single Test -->
+        <div class="container">
+            <div class="test-section">
+                <h2>🔬 Tek Lab Testi</h2>
+                <div class="input-group">
+                    <label>Test Adı:</label>
+                    <input type="text" id="testName" value="Hemoglobin" />
+                </div>
+                <div class="input-group">
+                    <label>Sonuç:</label>
+                    <input type="text" id="testValue" value="8.5" />
+                </div>
+                <div class="input-group">
+                    <label>Birim:</label>
+                    <input type="text" id="testUnit" value="g/dL" />
+                </div>
+                <div class="input-group">
+                    <label>Referans Aralığı:</label>
+                    <input type="text" id="testRange" value="12.0-15.5 g/dL" />
+                </div>
+                <button onclick="testSingleLab()" id="labBtn">🔬 Lab Test</button>
+                <div id="labResponse" class="response" style="display:none;"></div>
+            </div>
+        </div>
+
+        <!-- Lab Summary Test -->
+        <div class="container">
+            <div class="test-section">
+                <h2>📊 Genel Lab Özeti</h2>
+                <div class="input-group">
+                    <label>Test Seansı Sayısı:</label>
+                    <input type="number" id="sessionCount" value="5" />
+                </div>
+                <button onclick="testLabSummary()" id="summaryBtn">📊 Özet Test</button>
+                <div id="summaryResponse" class="response" style="display:none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://longopass-ai.onrender.com';
+        // const API_BASE = 'http://localhost:8000'; // Local test için
+        
+        let conversationId = null;
+
+        async function apiCall(endpoint, data, method = 'POST') {
+            const response = await fetch(`${API_BASE}${endpoint}`, {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-User-ID': document.getElementById('chatUserId')?.value || 'test-user-html',
+                    'X-User-Plan': document.getElementById('chatPlan')?.value || 'premium'
+                },
+                body: method !== 'GET' ? JSON.stringify(data) : undefined
+            });
+            return response.json();
+        }
+
+        async function testChat() {
+            const btn = document.getElementById('chatBtn');
+            const response = document.getElementById('chatResponse');
+            
+            btn.disabled = true;
+            btn.innerHTML = '⏳ Test Ediliyor...';
+            response.style.display = 'block';
+            response.className = 'response';
+            response.textContent = 'Chat sistemi test ediliyor...';
+
+            try {
+                // Start conversation if needed
+                if (!conversationId) {
+                    const startRes = await apiCall('/ai/chat/start', {});
+                    conversationId = startRes.conversation_id;
+                }
+
+                // Send message
+                const message = document.getElementById('chatMessage').value;
+                const chatRes = await apiCall('/ai/chat', {
+                    conversation_id: conversationId,
+                    text: message
+                });
+
+                response.className = 'response success';
+                response.textContent = `✅ CHAT YANITI:\n\nKullanılan Model: ${chatRes.used_model}\nSüre: ${chatRes.latency_ms}ms\n\n${chatRes.reply}`;
+            } catch (error) {
+                response.className = 'response error';
+                response.textContent = `❌ HATA: ${error.message}`;
+            }
+
+            btn.disabled = false;
+            btn.innerHTML = '🚀 Chat Test';
+        }
+
+        async function testQuiz() {
+            const btn = document.getElementById('quizBtn');
+            const response = document.getElementById('quizResponse');
+            
+            btn.disabled = true;
+            btn.innerHTML = '⏳ Analiz Ediliyor...';
+            response.style.display = 'block';
+            response.className = 'response';
+            response.textContent = 'Quiz analizi yapılıyor...';
+
+            try {
+                const quizData = {
+                    answers: {
+                        age_range: document.getElementById('ageRange').value,
+                        gender: document.getElementById('gender').value,
+                        sleep_pattern: "düzensiz",
+                        sleep_hours: "6-8_saat",
+                        nutrition_type: "karışık",
+                        exercise_frequency: "haftada_1-2",
+                        stress_level: "yüksek",
+                        allergies: ["süt"],
+                        health_goals: document.getElementById('healthGoals').value.split(',').map(s => s.trim()),
+                        existing_supplements: ["multivitamin"]
+                    }
+                };
+
+                const quizRes = await apiCall('/ai/quiz', quizData);
+                
+                response.className = 'response success';
+                response.textContent = `✅ QUIZ SONUCU:\n\n${JSON.stringify(quizRes, null, 2)}`;
+            } catch (error) {
+                response.className = 'response error';
+                response.textContent = `❌ HATA: ${error.message}`;
+            }
+
+            btn.disabled = false;
+            btn.innerHTML = '🧬 Quiz Test';
+        }
+
+        async function testSingleLab() {
+            const btn = document.getElementById('labBtn');
+            const response = document.getElementById('labResponse');
+            
+            btn.disabled = true;
+            btn.innerHTML = '⏳ Analiz Ediliyor...';
+            response.style.display = 'block';
+            response.className = 'response';
+            response.textContent = 'Lab analizi yapılıyor...';
+
+            try {
+                const labData = {
+                    test: {
+                        name: document.getElementById('testName').value,
+                        value: document.getElementById('testValue').value,
+                        unit: document.getElementById('testUnit').value,
+                        reference_range: document.getElementById('testRange').value
+                    }
+                };
+
+                const labRes = await apiCall('/ai/lab/single', labData);
+                
+                response.className = 'response success';
+                response.textContent = `✅ LAB ANALİZİ:\n\n${JSON.stringify(labRes, null, 2)}`;
+            } catch (error) {
+                response.className = 'response error';
+                response.textContent = `❌ HATA: ${error.message}`;
+            }
+
+            btn.disabled = false;
+            btn.innerHTML = '🔬 Lab Test';
+        }
+
+        async function testLabSummary() {
+            const btn = document.getElementById('summaryBtn');
+            const response = document.getElementById('summaryResponse');
+            
+            btn.disabled = true;
+            btn.innerHTML = '⏳ Analiz Ediliyor...';
+            response.style.display = 'block';
+            response.className = 'response';
+            response.textContent = 'Genel lab özeti hazırlanıyor...';
+
+            try {
+                const summaryData = {
+                    tests: [
+                        {name: "Hemoglobin", value: "8.5", unit: "g/dL", reference_range: "12.0-15.5 g/dL"},
+                        {name: "Vitamin D", value: "18", unit: "ng/mL", reference_range: "20-50 ng/mL"},
+                        {name: "Total Kolesterol", value: "190", unit: "mg/dL", reference_range: "<200 mg/dL"}
+                    ],
+                    total_test_sessions: parseInt(document.getElementById('sessionCount').value)
+                };
+
+                const summaryRes = await apiCall('/ai/lab/summary', summaryData);
+                
+                response.className = 'response success';
+                response.textContent = `✅ GENEL ÖZET:\n\n${JSON.stringify(summaryRes, null, 2)}`;
+            } catch (error) {
+                response.className = 'response error';
+                response.textContent = `❌ HATA: ${error.message}`;
+            }
+
+            btn.disabled = false;
+            btn.innerHTML = '📊 Özet Test';
+        }
+
+        // Initialize with sample data
+        document.getElementById('chatMessage').value = 'D vitamini eksikliği belirtileri nelerdir?';
+    </script>
+</body>
+</html>

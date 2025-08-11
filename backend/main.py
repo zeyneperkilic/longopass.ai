@@ -35,6 +35,12 @@ def widget_js():
     with open("frontend/widget.js", "r", encoding="utf-8") as f:
         return f.read()
 
+@app.get("/test")
+def test_page():
+    from fastapi.responses import HTMLResponse
+    with open("frontend/test.html", "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
+
 # ---------- CHAT (PREMIUM) ----------
 
 @app.post("/ai/chat/start", response_model=ChatStartResponse)
