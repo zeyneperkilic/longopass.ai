@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8">
+    <title>Longopass AI Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+        button { background: #0ea5e9; color: white; border: none; padding: 12px 20px; margin: 10px; border-radius: 8px; cursor: pointer; }
+        button:hover { background: #0284c7; }
+        .result { margin: 20px 0; padding: 15px; background: #f1f5f9; border-radius: 8px; min-height: 50px; }
+        input, textarea { width: 100%; padding: 10px; margin: 5px 0; border: 1px solid #ccc; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Longopass AI Test Sayfası</h1>
+    <p><strong>API Base:</strong> <span id="api-base"></span></p>
+    
+    <div>
+        <h3>1. Widget Test</h3>
+        <button onclick="openWidget()">Widget'ı Aç</button>
+        <button onclick="closeWidget()">Widget'ı Kapat</button>
+    </div>
+
+    <div>
+        <h3>2. Quiz Test</h3>
+        <textarea id="quiz-data" placeholder="Quiz cevapları">Günlük 2-3 saat egzersiz yapıyorum, çok şeker tüketiyorum, vitamin eksikliği var.</textarea>
+        <br><button onclick="testQuiz()">Quiz Analizi</button>
+        <div id="quiz-result" class="result"></div>
+    </div>
+
+    <div>
+        <h3>3. Lab Test</h3>
+        <input id="lab-test" placeholder="Test adı" value="HbA1c">
+        <input id="lab-value" placeholder="Değer" value="6.5">
+        <input id="lab-unit" placeholder="Birim" value="%">
+        <button onclick="testLab()">Lab Analizi</button>
+        <div id="lab-result" class="result"></div>
+    </div>
+
+    <div>
+        <h3>4. Chat Test</h3>
+        <input id="chat-message" placeholder="Sağlık sorusu" value="D vitamini eksikliği belirtileri nelerdir?">
+        <button onclick="testChat()">Sohbet</button>
+        <div id="chat-result" class="result"></div>
+    </div>
+
+    <script>
+        // API configuration
+        const API_BASE = window.location.origin;
+        document.getElementById('api-base').textContent = API_BASE;
+        
+        // Configure widget
+        window.LONGOPASS_AI_BASE = API_BASE;
+        window.LONGOPASS_USER_ID = 'test-user';
+        window.LONGOPASS_PLAN = 'premium';
+        
+        // Widget functions
+        function openWidget() { window.LongopassAI?.open(); }
+        function closeWidget() { window.LongopassAI?.close(); }
+        
+        // Quiz test
+        async function testQuiz() {
+            const data = document.getElementById('quiz-data').value;
+            const result = document.getElementById('quiz-result');
+            result.innerHTML = 'Analiz ediliyor...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/ai/quiz`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-User-Plan': 'premium' },
+                    body: JSON.stringify({ payload: { answers: data } })
+                });
+                const json = await response.json();
+                result.innerHTML = `<pre>${JSON.stringify(json, null, 2)}</pre>`;
+            } catch (error) {
+                result.innerHTML = `❌ Hata: ${error.message}`;
+            }
+        }
+        
+        // Lab test
+        async function testLab() {
+            const test = document.getElementById('lab-test').value;
+            const value = parseFloat(document.getElementById('lab-value').value);
+            const unit = document.getElementById('lab-unit').value;
+            const result = document.getElementById('lab-result');
+            result.innerHTML = 'Analiz ediliyor...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/ai/lab/analyze`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-User-Plan': 'premium' },
+                    body: JSON.stringify({ results: [{ test, value, unit }] })
+                });
+                const json = await response.json();
+                result.innerHTML = `<pre>${JSON.stringify(json, null, 2)}</pre>`;
+            } catch (error) {
+                result.innerHTML = `❌ Hata: ${error.message}`;
+            }
+        }
+        
+        // Chat test
+        let conversationId = null;
+        async function testChat() {
+            const message = document.getElementById('chat-message').value;
+            const result = document.getElementById('chat-result');
+            result.innerHTML = 'Sohbet başlatılıyor...';
+            
+            try {
+                // Start conversation if needed
+                if (!conversationId) {
+                    const startResponse = await fetch(`${API_BASE}/ai/chat/start`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-User-Plan': 'premium' },
+                        body: JSON.stringify({})
+                    });
+                    const startJson = await startResponse.json();
+                    conversationId = startJson.conversation_id;
+                }
+                
+                // Send message
+                const response = await fetch(`${API_BASE}/ai/chat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-User-Plan': 'premium' },
+                    body: JSON.stringify({ conversation_id: conversationId, text: message })
+                });
+                const json = await response.json();
+                result.innerHTML = `<strong>Yanıt:</strong><br>${json.reply || JSON.stringify(json)}`;
+            } catch (error) {
+                result.innerHTML = `❌ Hata: ${error.message}`;
+            }
+        }
+    </script>
+    
+    <!-- Load widget -->
+    <script src="/widget.js" defer></script>
+</body>
+</html>

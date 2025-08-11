@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Longopass AI Demo</title>
+</head>
+<body>
+  <h1>Longopass AI Demo</h1>
+  <button id="lp-ai-quiz-btn">AI ile öneri al</button>
+  <button id="lp-ai-lab-btn">AI ile lab analizi</button>
+
+  <script>
+    // Gateway host & fake plan/user (DEMO)
+    window.LONGOPASS_AI_BASE = "http://localhost:8000";
+    window.LONGOPASS_PLAN = "premium"; // or "free"
+    window.LONGOPASS_USER_ID = "123";
+  </script>
+  <script src="/widget.js" defer></script>
+</body>
+</html>

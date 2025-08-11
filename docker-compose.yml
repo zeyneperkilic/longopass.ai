@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  longopass-ai:
+    build: .
+    container_name: longopass-ai
+    ports:
+      - "8000:8000"
+    environment:
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - OPENROUTER_BASE_URL=${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
+      - CASCADE_MODELS=${CASCADE_MODELS:-google/gemini-2.5-pro,x-ai/grok-2,deepseek/deepseek-r1,meta-llama/llama-3.1-8b-instruct}
+      - FINALIZER_MODEL=${FINALIZER_MODEL:-openai/gpt-5}
+      - HEALTH_MODE=${HEALTH_MODE:-topic}
+      - MODERATION_MODEL=${MODERATION_MODEL:-meta-llama/llama-3.1-8b-instruct}
+      - PRESCRIPTION_BLOCK=${PRESCRIPTION_BLOCK:-true}
+      - DAILY_CHAT_LIMIT=${DAILY_CHAT_LIMIT:-100}
+      - FREE_ANALYZE_LIMIT=${FREE_ANALYZE_LIMIT:-1}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-*}
+      - CASCADE_TIMEOUT_MS=${CASCADE_TIMEOUT_MS:-8000}
+      - CHAT_HISTORY_MAX=${CHAT_HISTORY_MAX:-20}
+      - DB_PATH=/app/app.db
+    volumes:
+      - ./data:/app
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/docs"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
