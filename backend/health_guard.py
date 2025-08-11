@@ -69,38 +69,56 @@ def is_prescription_like(text: str) -> bool:
     return False
 
 def guard_or_message(text: str) -> Tuple[bool, str]:
-    if is_prescription_like(text):
-        return False, "İlaç/doz yazamıyorum veya reçete düzenleyemem. Uygun tedavi için hekiminize danışın."
+    try:
+        if is_prescription_like(text):
+            return False, "İlaç/doz yazamıyorum veya reçete düzenleyemem. Uygun tedavi için hekiminize danışın."
 
-    mode = (HEALTH_MODE or "").lower()
+        mode = (HEALTH_MODE or "").lower()
 
-    # Topic-first: use a lightweight LLM classifier
-    if mode == "topic":
-        label = classify_topic_llm(text)
-        if label in ("HEALTH", "AMBIGUOUS"):
+        # Topic-first: use intelligent LLM classifier
+        if mode == "topic":
+            try:
+                label = classify_topic_llm(text)
+                print(f"Health guard classification: {text[:50]}... -> {label}")
+                
+                if label == "HEALTH":
+                    return True, ""
+                elif label == "AMBIGUOUS":
+                    # For ambiguous, be permissive but log
+                    print(f"Ambiguous health query allowed: {text[:100]}")
+                    return True, ""
+                elif label == "MEDICAL_PROHIBITED":
+                    return False, "İlaç/doz/teşhis talebi gerçekleştiremiyorum. Uygun tedavi için hekiminize danışın."
+                else:  # NON_HEALTH
+                    return False, "Üzgünüm, Longopass AI yalnızca sağlık ve supplement konularında yardımcı olabilir."
+            except Exception as e:
+                print(f"Health guard LLM failed: {e}, allowing request")
+                # LLM failed, be permissive to avoid blocking valid health queries
+                return True, ""
+
+        # Strict keyword/regex first
+        if is_health_topic(text):
             return True, ""
-        if label == "MEDICAL_PROHIBITED":
-            return False, "İlaç/doz/teşhis talebi gerçekleştiremiyorum. Uygun tedavi için hekiminize danışın."
+
+        # Hybrid: fallback to LLM if rules inconclusive
+        if mode == "hybrid":
+            try:
+                label = classify_topic_llm(text)
+                if label in ("HEALTH", "AMBIGUOUS"):
+                    return True, ""
+                elif label == "NON_HEALTH":
+                    return False, "Üzgünüm, Longopass AI yalnızca sağlık ve supplement konularında yardımcı olabilir."
+            except Exception:
+                # LLM failed, fallback to keyword-based check
+                if is_health_topic(text):
+                    return True, ""
+        
         return False, "Üzgünüm, Longopass AI yalnızca sağlık ve supplement konularında yardımcı olabilir."
-
-    # Strict keyword/regex first
-    if is_health_topic(text):
+        
+    except Exception as e:
+        print(f"Health guard error: {e}")
+        # If anything fails, be permissive but log
         return True, ""
-
-    # Hybrid: fallback to LLM if rules inconclusive, then to keyword-based check
-    if mode == "hybrid":
-        try:
-            label = classify_topic_llm(text)
-            if label in ("HEALTH", "AMBIGUOUS"):
-                return True, ""
-            elif label == "NON_HEALTH":
-                return False, "Üzgünüm, Longopass AI yalnızca sağlık ve supplement konularında yardımcı olabilir."
-        except Exception:
-            # LLM failed, fallback to keyword-based check
-            if is_health_topic_keyword_based(text):
-                return True, ""
-    
-    return False, "Üzgünüm, Longopass AI yalnızca sağlık ve supplement konularında yardımcı olabilir."
 
 
 # ---------- Topic classifier (LLM) with small TTL cache ----------
@@ -131,29 +149,39 @@ def classify_topic_llm(text: str) -> str:
     cached = _cache_get(key)
     if cached:
         return cached
+    
     sys = (
-        "Sınıflandırma yap. YALNIZCA bu etiketlerden birini döndür: "
-        "HEALTH, NON_HEALTH, MEDICAL_PROHIBITED, AMBIGUOUS. Açıklama ekleme."
+        "Sen Longopass AI için health topic classifier'sın. "
+        "Kullanıcı sorusunu analiz et ve SADECE şu kategorilerden birini döndür: "
+        "HEALTH, NON_HEALTH, MEDICAL_PROHIBITED, AMBIGUOUS"
+        "\n\nKATEGORİLER:"
+        "\n• HEALTH: Sağlık, beslenme, supplement, vitamin, mineral, laboratuvar, semptom konuları"
+        "\n• MEDICAL_PROHIBITED: İlaç yazma, doz önerme, teşhis koyma talepleri"
+        "\n• NON_HEALTH: Kripto, borsa, siyaset, spor, teknoloji, eğlence vb."
+        "\n• AMBIGUOUS: Belirsiz veya karma konular"
+        "\n\nSADECE ETİKETİ DÖNDÜR, AÇIKLAMA YAPMA!"
     )
-    usr = (
-        "Metin: " + str(text) + "\n\n" +
-        "Kriter: Sağlık/supplement/laboratuvar/symptom bağlamı varsa HEALTH. "
-        "İlaç/doz/teşhis talebi ise MEDICAL_PROHIBITED. Belirsizse AMBIGUOUS. Aksi NON_HEALTH."
-    )
+    
+    usr = f"Kullanıcı sorusu: {text}"
+    
     out = call_chat_model(MODERATION_MODEL,
                           [{"role": "system", "content": sys}, {"role": "user", "content": usr}],
-                          temperature=0.0, max_tokens=3)
+                          temperature=0.1, max_tokens=5)
+    
     label = (out.get("content") or "").strip().upper()
-    # normalize to known set
-    if "MEDICAL" in label:
+    
+    # Normalize to known set with better pattern matching
+    if any(word in label for word in ["MEDICAL", "PROHIBITED", "İLAÇ", "DOZ", "TEŞHİS"]):
         label = "MEDICAL_PROHIBITED"
-    elif label.startswith("HEALTH"):
+    elif any(word in label for word in ["HEALTH", "SAĞLIK", "VİTAMİN", "SUPPLEMENT"]):
         label = "HEALTH"
-    elif label.startswith("NON"):
+    elif any(word in label for word in ["NON", "HEALTH", "OLMAYAN", "DEĞİL"]):
         label = "NON_HEALTH"
-    elif label.startswith("AMBIG"):
+    elif any(word in label for word in ["AMBIG", "BELİRSİZ", "KARMA"]):
         label = "AMBIGUOUS"
     else:
+        # Default fallback - be conservative
         label = "AMBIGUOUS"
+    
     _cache_set(key, label)
     return label

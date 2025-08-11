@@ -9,7 +9,7 @@ from .db import Base, engine, SessionLocal, User, Conversation, Message, Message
 from .auth import get_db, get_or_create_user
 from .schemas import AnalyzePayload, LabBatchPayload, ChatStartResponse, ChatMessageRequest, ChatResponse, AnalyzeResponse, QuizRequest, QuizResponse, SingleLabRequest, MultipleLabRequest, LabAnalysisResponse, GeneralLabSummaryResponse
 from .health_guard import guard_or_message
-from .orchestrator import cascade_chat, finalize_text, cascade_analyze, finalize_analyze, parallel_quiz_analyze, parallel_single_lab_analyze, parallel_multiple_lab_analyze
+from .orchestrator import parallel_chat, finalize_text, parallel_analyze, finalize_analyze, parallel_quiz_analyze, parallel_single_lab_analyze, parallel_multiple_lab_analyze
 from .utils import parse_json_safe
 
 app = FastAPI(title="Longopass AI Gateway")
@@ -105,9 +105,9 @@ def chat_message(req: ChatMessageRequest,
     # store user message
     db.add(Message(conversation_id=conv.id, user_id=user.id, role="user", content=req.text)); db.commit()
 
-    # cascade
+    # parallel chat with synthesis
     start = time.time()
-    res = cascade_chat(history)
+    res = parallel_chat(history)
     candidate = res["content"]
     used_model = res.get("model_used","unknown")
     # finalize
@@ -219,7 +219,7 @@ def analyze_lab_legacy(body: LabBatchPayload,
     if not ok:
         raise HTTPException(400, msg)
 
-    res = cascade_analyze({"lab_results": body.results})
+    res = parallel_analyze({"lab_results": body.results})
     final_json = res["content"]
     data = parse_json_safe(final_json) or {}
     

@@ -7,16 +7,94 @@ from .utils import is_valid_chat, is_valid_analyze, parse_json_safe
 SYSTEM_HEALTH = ("Sen Longopass AI'sın. SADECE sağlık/supplement/laboratuvar konularında yanıt ver. "
                  "Off-topic'te kibarca reddet. Yanıtlar bilgilendirme amaçlıdır; tanı/tedavi için hekim gerekir.")
 
-def cascade_chat(messages: List[Dict[str, str]]) -> Dict[str, Any]:
-    # messages already includes system + history + user
+def parallel_chat(messages: List[Dict[str, str]]) -> Dict[str, Any]:
+    """Run parallel chat with multiple models, then synthesize with GPT-5"""
+    try:
+        # Step 1: Call multiple models in parallel
+        responses = []
+        with ThreadPoolExecutor(max_workers=len(PARALLEL_MODELS)) as executor:
+            future_to_model = {
+                executor.submit(call_chat_model, model, messages, 0.6, 600): model 
+                for model in PARALLEL_MODELS
+            }
+            
+            for future in as_completed(future_to_model):
+                model = future_to_model[future]
+                try:
+                    result = future.result()
+                    if is_valid_chat(result["content"]):
+                        responses.append({
+                            "model": model,
+                            "response": result["content"]
+                        })
+                except Exception as e:
+                    print(f"Chat model {model} failed: {e}")
+                    continue
+        
+        # Step 2: If no valid responses, fallback
+        if not responses:
+            print("All chat models failed, fallback to single model")
+            return cascade_chat_fallback(messages)
+        
+        # Step 3: If only one response, return it directly
+        if len(responses) == 1:
+            return {
+                "content": responses[0]["response"],
+                "model_used": responses[0]["model"]
+            }
+        
+        # Step 4: Synthesize multiple responses with GPT-5
+        synthesis_prompt = build_chat_synthesis_prompt(responses, messages[-1]["content"])
+        final_result = call_chat_model(SYNTHESIS_MODEL, synthesis_prompt, temperature=0.3, max_tokens=800)
+        
+        final_result["models_used"] = [r["model"] for r in responses]
+        final_result["synthesis_model"] = SYNTHESIS_MODEL
+        return final_result
+        
+    except Exception as e:
+        print(f"Parallel chat failed: {e}, fallback to sequential")
+        return cascade_chat_fallback(messages)
+
+def cascade_chat_fallback(messages: List[Dict[str, str]]) -> Dict[str, Any]:
+    """Fallback to sequential cascade for chat"""
     for model in PARALLEL_MODELS:
         res = call_chat_model(model, messages, temperature=0.6, max_tokens=600)
-        if not is_valid_chat(res["content"]):
-            continue
-        res["model_used"] = model
-        return res
+        if is_valid_chat(res["content"]):
+            res["model_used"] = model
+            return res
     # if none acceptable, return last model name with empty content
     return {"content": "", "model_used": PARALLEL_MODELS[-1]}
+
+def build_chat_synthesis_prompt(responses: List[Dict[str, str]], user_question: str) -> List[Dict[str, str]]:
+    """Build synthesis prompt for chat responses"""
+    system_prompt = (
+        SYSTEM_HEALTH + " Sen bir chat synthesis uzmanısın. "
+        "Birden fazla AI modelin verdiği yanıtları inceleyip, "
+        "en doğru, yararlı ve tutarlı yanıtı oluştur. "
+        "\n\nKurallar:"
+        "\n1. Kullanıcının sorusuna doğrudan yanıt ver"
+        "\n2. Sağlık/supplement konularında en güvenli bilgiyi ver"
+        "\n3. Çelişkili bilgilerde en muhafazakar yaklaşımı seç"
+        "\n4. Anlaşılır ve samimi Türkçe kullan"
+        "\n5. Off-topic sorularda kibarca reddet"
+        "\n6. Sadece nihai yanıtı döndür, 'Model 1' gibi atıflar yapma"
+    )
+    
+    responses_text = f"Kullanıcı sorusu: {user_question}\n\n=== MODEL RESPONSES ===\n"
+    for i, resp in enumerate(responses, 1):
+        responses_text += f"\nMODEL {i} ({resp['model']}):\n{resp['response']}\n"
+    
+    responses_text += f"\n=== SYNTHESIS GÖREV ===\n"
+    responses_text += f"Yukarıdaki yanıtları analiz et ve kullanıcının sorusuna en iyi yanıtı oluştur."
+    
+    return [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": responses_text}
+    ]
+
+# Keep old function for backward compatibility
+def cascade_chat(messages: List[Dict[str, str]]) -> Dict[str, Any]:
+    return parallel_chat(messages)
 
 def finalize_text(text: str) -> str:
     final_messages = [

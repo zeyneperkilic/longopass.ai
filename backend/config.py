@@ -27,7 +27,7 @@ CASCADE_MIN_CHARS = int(os.getenv("CASCADE_MIN_CHARS", "200"))
 CHAT_HISTORY_MAX = int(os.getenv("CHAT_HISTORY_MAX", "20"))
 FREE_ANALYZE_LIMIT = int(os.getenv("FREE_ANALYZE_LIMIT", "1"))
 
-HEALTH_MODE = os.getenv("HEALTH_MODE", "strict")
+HEALTH_MODE = os.getenv("HEALTH_MODE", "topic")
 ALLOWED_ORIGINS = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "*").split(",")]
 
 LOG_PROVIDER_RAW = os.getenv("LOG_PROVIDER_RAW", "true").lower() == "true"
