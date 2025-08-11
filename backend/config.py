@@ -6,15 +6,21 @@ load_dotenv()
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 OPENROUTER_BASE_URL = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
 
-CASCADE_MODELS = [m.strip() for m in os.getenv(
-    "CASCADE_MODELS",
-    # Quality-first order (pro → grok → r1 → llama-8b)
+# Parallel LLM processing models (run simultaneously)
+PARALLEL_MODELS = [m.strip() for m in os.getenv(
+    "PARALLEL_MODELS",
+    # Multiple models for diverse analysis (run in parallel)
     "google/gemini-2.5-pro,x-ai/grok-2,deepseek/deepseek-r1,meta-llama/llama-3.1-8b-instruct"
 ).split(",") if m.strip()]
 
-FINALIZER_MODEL = os.getenv("FINALIZER_MODEL", "openai/gpt-5")
+# High-quality synthesis model (combines parallel results)
+SYNTHESIS_MODEL = os.getenv("SYNTHESIS_MODEL", "openai/gpt-5-chat")
 
-CASCADE_TIMEOUT_MS = int(os.getenv("CASCADE_TIMEOUT_MS", "8000"))
+# Keep old names for backward compatibility
+CASCADE_MODELS = PARALLEL_MODELS
+FINALIZER_MODEL = SYNTHESIS_MODEL
+
+PARALLEL_TIMEOUT_MS = int(os.getenv("PARALLEL_TIMEOUT_MS", "8000"))
 CASCADE_MIN_CHARS = int(os.getenv("CASCADE_MIN_CHARS", "200"))
 CHAT_HISTORY_MAX = int(os.getenv("CHAT_HISTORY_MAX", "20"))
 FREE_ANALYZE_LIMIT = int(os.getenv("FREE_ANALYZE_LIMIT", "1"))

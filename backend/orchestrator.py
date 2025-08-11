@@ -1,6 +1,6 @@
 from typing import List, Dict, Any
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from .config import CASCADE_MODELS, FINALIZER_MODEL
+from .config import PARALLEL_MODELS, SYNTHESIS_MODEL, CASCADE_MODELS, FINALIZER_MODEL
 from .openrouter_client import call_chat_model
 from .utils import is_valid_chat, is_valid_analyze, parse_json_safe
 
@@ -9,14 +9,14 @@ SYSTEM_HEALTH = ("Sen Longopass AI'sın. SADECE sağlık/supplement/laboratuvar 
 
 def cascade_chat(messages: List[Dict[str, str]]) -> Dict[str, Any]:
     # messages already includes system + history + user
-    for model in CASCADE_MODELS:
+    for model in PARALLEL_MODELS:
         res = call_chat_model(model, messages, temperature=0.6, max_tokens=600)
         if not is_valid_chat(res["content"]):
             continue
         res["model_used"] = model
         return res
     # if none acceptable, return last model name with empty content
-    return {"content": "", "model_used": CASCADE_MODELS[-1]}
+    return {"content": "", "model_used": PARALLEL_MODELS[-1]}
 
 def finalize_text(text: str) -> str:
     final_messages = [
@@ -32,7 +32,7 @@ def finalize_text(text: str) -> str:
         },
         {"role": "user", "content": text},
     ]
-    final = call_chat_model(FINALIZER_MODEL, final_messages, temperature=0.2, max_tokens=800)
+    final = call_chat_model(SYNTHESIS_MODEL, final_messages, temperature=0.2, max_tokens=800)
     return final["content"]
 
 def build_analyze_prompt(payload: Dict[str, Any]) -> List[Dict[str, str]]:
@@ -91,57 +91,62 @@ def build_synthesis_prompt(responses: List[Dict[str, str]]) -> List[Dict[str, st
 
 def parallel_analyze(payload: Dict[str, Any]) -> Dict[str, Any]:
     """Run multiple LLMs in parallel, then synthesize results with GPT-5"""
-    messages = build_analyze_prompt(payload)
-    
-    # Step 1: Call multiple models in parallel
-    responses = []
-    with ThreadPoolExecutor(max_workers=len(CASCADE_MODELS)) as executor:
-        # Submit all model calls simultaneously
-        future_to_model = {
-            executor.submit(call_chat_model, model, messages, 0.3, 1200): model 
-            for model in CASCADE_MODELS
-        }
+    try:
+        messages = build_analyze_prompt(payload)
         
-        # Collect valid responses
-        for future in as_completed(future_to_model):
-            model = future_to_model[future]
-            try:
-                result = future.result()
-                ok, _ = is_valid_analyze(result["content"])
-                if ok:
-                    responses.append({
-                        "model": model,
-                        "response": result["content"]
-                    })
-            except Exception as e:
-                print(f"Model {model} failed: {e}")
-                continue
-    
-    # Step 2: If no valid responses, fallback to single model
-    if not responses:
-        print("All parallel models failed, falling back to single model")
+        # Step 1: Call multiple models in parallel
+        responses = []
+        with ThreadPoolExecutor(max_workers=len(PARALLEL_MODELS)) as executor:
+            # Submit all model calls simultaneously
+            future_to_model = {
+                executor.submit(call_chat_model, model, messages, 0.3, 1200): model 
+                for model in PARALLEL_MODELS
+            }
+            
+            # Collect valid responses
+            for future in as_completed(future_to_model):
+                model = future_to_model[future]
+                try:
+                    result = future.result()
+                    ok, _ = is_valid_analyze(result["content"])
+                    if ok:
+                        responses.append({
+                            "model": model,
+                            "response": result["content"]
+                        })
+                except Exception as e:
+                    print(f"Model {model} failed: {e}")
+                    continue
+        
+        # Step 2: If no valid responses, fallback to single model
+        if not responses:
+            print("All parallel models failed, falling back to single model")
+            return cascade_analyze_fallback(payload)
+        
+        # Step 3: Synthesize with GPT-5
+        synthesis_prompt = build_synthesis_prompt(responses)
+        final_result = call_chat_model(SYNTHESIS_MODEL, synthesis_prompt, temperature=0.1, max_tokens=1500)
+        
+        final_result["models_used"] = [r["model"] for r in responses]
+        final_result["synthesis_model"] = SYNTHESIS_MODEL
+        return final_result
+        
+    except Exception as e:
+        print(f"Parallel analyze failed: {e}, falling back to sequential")
         return cascade_analyze_fallback(payload)
-    
-    # Step 3: Synthesize with GPT-5
-    synthesis_prompt = build_synthesis_prompt(responses)
-    final_result = call_chat_model(FINALIZER_MODEL, synthesis_prompt, temperature=0.1, max_tokens=1500)
-    
-    final_result["models_used"] = [r["model"] for r in responses]
-    final_result["synthesis_model"] = FINALIZER_MODEL
-    return final_result
 
 def cascade_analyze_fallback(payload: Dict[str, Any]) -> Dict[str, Any]:
     """Fallback to sequential cascade if parallel fails"""
     messages = build_analyze_prompt(payload)
     last = None
-    for model in CASCADE_MODELS:
+    for model in PARALLEL_MODELS:
         res = call_chat_model(model, messages, temperature=0.3, max_tokens=1200)
         last = res
         ok, _ = is_valid_analyze(res["content"])
         if ok:
             res["model_used"] = model
             return res
-    last["model_used"] = CASCADE_MODELS[-1]
+    last["model_used"] = PARALLEL_MODELS[-1]
     return last
 
 # Keep old function for backward compatibility
@@ -154,5 +159,5 @@ def finalize_analyze(json_text: str) -> str:
         {"role": "system", "content": SYSTEM_HEALTH + " Bu JSON'u yalnızca tekilleştir, önem sırasına koy ve geçerli JSON olarak geri ver. Yeni öğe ekleme."},
         {"role": "user", "content": json_text}
     ]
-    final = call_chat_model(FINALIZER_MODEL, messages, temperature=0.0, max_tokens=900)
+    final = call_chat_model(SYNTHESIS_MODEL, messages, temperature=0.0, max_tokens=900)
     return final["content"]
