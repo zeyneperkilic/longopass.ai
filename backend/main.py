@@ -101,15 +101,14 @@ def chat_message(req: ChatMessageRequest,
         db.add(m); db.commit()
         return ChatResponse(conversation_id=conv.id, reply=reply, used_model="guard", latency_ms=0)
 
-    # build history
+    # store user message FIRST
+    db.add(Message(conversation_id=conv.id, user_id=user.id, role="user", content=req.text)); db.commit()
+
+    # build history (including the new user message)
     rows = db.query(Message).filter(Message.conversation_id==conv.id).order_by(Message.created_at.asc()).all()
     history = [{"role": "system", "content": "Sen Longopass AI'sın. SADECE sağlık/supplement/lab konularında yanıt ver. Off-topic'te kibarca reddet."}]
     for r in rows[-(CHAT_HISTORY_MAX-1):]:
         history.append({"role": r.role, "content": r.content})
-    history.append({"role": "user", "content": req.text})
-
-    # store user message
-    db.add(Message(conversation_id=conv.id, user_id=user.id, role="user", content=req.text)); db.commit()
 
     # parallel chat with synthesis
     start = time.time()
