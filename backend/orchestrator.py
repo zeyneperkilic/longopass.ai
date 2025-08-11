@@ -36,18 +36,24 @@ def finalize_text(text: str) -> str:
 
 def build_analyze_prompt(payload: Dict[str, Any]) -> List[Dict[str, str]]:
     schema = (
-        "STRICT JSON ŞEMASI:\n"
+        "STRICT JSON ŞEMASI ve ÖRNEK:\n"
         "{\n"
         '  "recommendations": [\n'
-        '    {"id": "string|optional", "name": "string", "reason": "string", "source": "consensus"}\n'
+        '    {"name": "D Vitamini", "reason": "Eksiklik belirtileri mevcut", "source": "consensus"},\n'
+        '    {"name": "Magnezyum", "reason": "Yorgunluk ve kas krampları için", "source": "consensus"}\n'
         "  ],\n"
-        '  "analysis": {"...": "..."}\n'
+        '  "analysis": {\n'
+        '    "summary": "D vitamini eksikliği olası, takviye önerilir",\n'
+        '    "key_findings": ["Yorgunluk", "Saç dökülmesi"],\n'
+        '    "risk_level": "düşük"\n'
+        "  }\n"
         "}\n"
-        "Sadece bu JSON'u üret, açıklama yazma."
+        "SADECE VE SADECE bu JSON formatında yanıt ver. Hiçbir açıklama, metin ekleme. "
+        "recommendations dizi boş olabilir ama analysis dolu olmalı."
     )
-    user = f"Kullanıcı verisi (quiz/lab): {payload}"
+    user = f"Kullanıcı verisi: {payload}"
     return [
-        {"role": "system", "content": SYSTEM_HEALTH + " Sadece sağlığa odaklan ve kesinlikle STRICT JSON üret."},
+        {"role": "system", "content": SYSTEM_HEALTH + " Sen bir sağlık supplement uzmanısın. Kullanıcı verilerini analiz et ve supplement önerileri yap. SADECE JSON döndür."},
         {"role": "user", "content": user + "\n\n" + schema}
     ]
 
