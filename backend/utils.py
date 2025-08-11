@@ -5,6 +5,12 @@ from .health_guard import is_health_topic
 
 def parse_json_safe(text: str):
     try:
+        # Clean markdown code blocks
+        if text.startswith("```json"):
+            text = text[7:]  # Remove ```json
+        if text.endswith("```"):
+            text = text[:-3]  # Remove ```
+        text = text.strip()
         return json.loads(text)
     except Exception:
         return None
