@@ -142,7 +142,8 @@ def analyze_quiz(body: AnalyzePayload,
         raise HTTPException(400, msg)
 
     res = cascade_analyze(body.payload)
-    final_json = finalize_analyze(res["content"])
+    # Temporarily bypass finalize_analyze to debug
+    final_json = res["content"]
     data = parse_json_safe(final_json) or {}
     # store as assistant analyze
     db.add(Message(user_id=user.id, conversation_id=None, role="assistant", content=final_json, model_name="analyze"))
@@ -160,7 +161,8 @@ def analyze_lab(body: LabBatchPayload,
         raise HTTPException(400, msg)
 
     res = cascade_analyze({"lab_results": body.results})
-    final_json = finalize_analyze(res["content"])
+    # Temporarily bypass finalize_analyze to debug
+    final_json = res["content"]
     data = parse_json_safe(final_json) or {}
     # store
     db.add(Message(user_id=user.id, conversation_id=None, role="assistant", content=final_json, model_name="analyze"))
