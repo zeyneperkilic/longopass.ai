@@ -61,7 +61,6 @@ class MultipleLabRequest(BaseModel):
     total_test_sessions: int = Field(description="Toplam test seansı sayısı")
 
 class LabAnalysisResponse(BaseModel):
-    status: str = "AI yorumları yakında aktif olacak"
     analysis: Dict[str, Any] = Field(default_factory=dict)
     disclaimer: str = "Bu içerik bilgilendirme amaçlıdır; tıbbi tanı/tedavi için hekiminize başvurun."
 
@@ -70,7 +69,6 @@ class GeneralLabSummaryResponse(BaseModel):
     general_assessment: Dict[str, Any] = Field(default_factory=dict)
     test_count: int
     overall_status: str
-    ai_status: str = "Yakında: Yapay zeka destekli kişiselleştirilmiş sağlık yorumları ve önerileri burada görünecektir."
     disclaimer: str = "Bu içerik bilgilendirme amaçlıdır; tıbbi tanı/tedavi için hekiminize başvurun."
 
 # Legacy schemas for compatibility

@@ -400,7 +400,7 @@ def quiz_fallback(quiz_answers: Dict[str, Any]) -> Dict[str, Any]:
     
     # Ultimate fallback
     return {
-        "content": '{"error": "Quiz analizi şu anda kullanılamıyor"}',
+        "content": '{"error": "Quiz analizi geçici olarak kullanılamıyor"}',
         "model_used": "fallback"
     }
 
@@ -589,13 +589,13 @@ def build_lab_synthesis_prompt(responses: List[Dict[str, str]], analysis_type: s
 def single_lab_fallback(test_data: Dict[str, Any]) -> Dict[str, Any]:
     """Fallback for single lab analysis"""
     return {
-        "content": '{"analysis": {"summary": "Test analizi şu anda kullanılamıyor", "interpretation": "Sistem bakımda"}}',
+        "content": '{"analysis": {"summary": "Test analizi geçici olarak kullanılamıyor", "interpretation": "Lütfen daha sonra tekrar deneyin"}}',
         "model_used": "fallback"
     }
 
 def multiple_lab_fallback(tests_data: List[Dict[str, Any]], session_count: int) -> Dict[str, Any]:
     """Fallback for multiple lab analysis"""
     return {
-        "content": f'{{"general_assessment": {{"title": "Genel Sağlık Durumu", "overall_summary": "Analiz sistemi şu anda kullanılamıyor"}}, "overall_status": "sistem_bakımda"}}',
+        "content": f'{{"general_assessment": {{"title": "Genel Sağlık Durumu", "overall_summary": "Analiz sistemi geçici olarak kullanılamıyor"}}, "overall_status": "geçici_bakım"}}',
         "model_used": "fallback"
     }
