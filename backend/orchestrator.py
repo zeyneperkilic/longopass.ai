@@ -102,13 +102,13 @@ def finalize_text(text: str) -> str:
             "role": "system",
             "content": (
                 SYSTEM_HEALTH +
-                " Görevin: Aşağıdaki asistan yanıtını kalite (doğruluk, tutarlılık, fayda, güvenlik) açısından değerlendir;"
-                " YETERSİZ/HATALI ise baştan, doğru ve güvenli bir yanıt olarak YENİDEN YAZ. Gerekirse eksikleri tamamla, yanlışları düzelt."
-                " Gereksiz tekrarları çıkar. Net, anlaşılır Türkçe kullan; mümkün olduğunda kısa madde işaretleriyle ver."
-                " Off-topic istekleri kibarca reddet. Sadece nihai yanıtı döndür."
+                " Sen Longopass AI'sın. Görevin: Aşağıdaki yanıtı son kontrol et ve gerekirse düzelt."
+                " SADECE KULLANICIYA DOĞRUDAN CEVAP VER. Meta yorumlar (\"yanıt doğru\", \"yeniden düzenlenmiş\" vb.) YAZMA."
+                " Eğer yanıt doğru ve yeterli ise, aynen gönder. Eğer hatalı/eksik ise, düzelt ve temiz yanıt ver."
+                " Off-topic sorularda kibarca reddet. Net, samimi Türkçe kullan."
             ),
         },
-        {"role": "user", "content": text},
+        {"role": "user", "content": f"Bu yanıtı kontrol et ve kullanıcıya temiz şekilde sun:\n\n{text}"},
     ]
     final = call_chat_model(SYNTHESIS_MODEL, final_messages, temperature=0.2, max_tokens=800)
     return final["content"]

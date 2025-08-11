@@ -253,7 +253,7 @@
                 });
 
                 response.className = 'response success';
-                response.textContent = `✅ CHAT YANITI:\n\nKullanılan Model: ${chatRes.used_model}\nSüre: ${chatRes.latency_ms}ms\n\n${chatRes.reply}`;
+                response.textContent = `✅ LONGOPASS AI YANITI:\n\n${chatRes.reply}\n\n[Debug: Model: ${chatRes.used_model} | Süre: ${chatRes.latency_ms}ms]`;
             } catch (error) {
                 response.className = 'response error';
                 response.textContent = `❌ HATA: ${error.message}`;
