@@ -168,3 +168,28 @@ def analyze_lab(body: LabBatchPayload,
     db.add(Message(user_id=user.id, conversation_id=None, role="assistant", content=final_json, model_name="analyze"))
     db.commit()
     return data
+
+@app.get("/debug/analyze")
+def debug_analyze():
+    """Debug endpoint to see raw LLM response"""
+    from .orchestrator import build_analyze_prompt
+    from .openrouter_client import call_chat_model
+    from .config import CASCADE_MODELS
+    
+    test_payload = {"belirtiler": "Yorgunluk, saç dökülmesi, konsantrasyon problemi"}
+    messages = build_analyze_prompt(test_payload)
+    
+    # Test first model in cascade
+    model = CASCADE_MODELS[0] 
+    res = call_chat_model(model, messages, temperature=0.3, max_tokens=900)
+    
+    from .utils import is_valid_analyze
+    is_valid, error = is_valid_analyze(res["content"])
+    
+    return {
+        "model": model,
+        "raw_response": res["content"], 
+        "is_valid": is_valid,
+        "validation_error": error,
+        "parsed": parse_json_safe(res["content"])
+    }
