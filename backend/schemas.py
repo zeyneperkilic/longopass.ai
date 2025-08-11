@@ -46,6 +46,33 @@ class QuizResponse(BaseModel):
     supplement_recommendations: List[SupplementRecommendation]
     disclaimer: str = "Bu içerik bilgilendirme amaçlıdır; tıbbi tanı/tedavi için hekiminize başvurun."
 
+# Lab Analysis Schemas
+class LabTestResult(BaseModel):
+    name: str = Field(description="Test adı (örn: Hemoglobin, Vitamin D)")
+    value: str = Field(description="Test sonucu değeri")
+    unit: str = Field(description="Birim (mg/dL, ng/mL, vs.)")
+    reference_range: Optional[str] = Field(default=None, description="Referans aralığı")
+
+class SingleLabRequest(BaseModel):
+    test: LabTestResult
+
+class MultipleLabRequest(BaseModel):
+    tests: List[LabTestResult]
+    total_test_sessions: int = Field(description="Toplam test seansı sayısı")
+
+class LabAnalysisResponse(BaseModel):
+    status: str = "AI yorumları yakında aktif olacak"
+    analysis: Dict[str, Any] = Field(default_factory=dict)
+    disclaimer: str = "Bu içerik bilgilendirme amaçlıdır; tıbbi tanı/tedavi için hekiminize başvurun."
+
+class GeneralLabSummaryResponse(BaseModel):
+    title: str = "Tüm Testlerin Genel Yorumu"
+    general_assessment: Dict[str, Any] = Field(default_factory=dict)
+    test_count: int
+    overall_status: str
+    ai_status: str = "Yakında: Yapay zeka destekli kişiselleştirilmiş sağlık yorumları ve önerileri burada görünecektir."
+    disclaimer: str = "Bu içerik bilgilendirme amaçlıdır; tıbbi tanı/tedavi için hekiminize başvurun."
+
 # Legacy schemas for compatibility
 class AnalyzePayload(BaseModel):
     payload: Dict[str, Any]

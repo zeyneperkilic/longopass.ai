@@ -7,9 +7,9 @@ import json, time
 from .config import ALLOWED_ORIGINS, CHAT_HISTORY_MAX, FREE_ANALYZE_LIMIT, DAILY_CHAT_LIMIT
 from .db import Base, engine, SessionLocal, User, Conversation, Message, MessageMeta
 from .auth import get_db, get_or_create_user
-from .schemas import AnalyzePayload, LabBatchPayload, ChatStartResponse, ChatMessageRequest, ChatResponse, AnalyzeResponse, QuizRequest, QuizResponse
+from .schemas import AnalyzePayload, LabBatchPayload, ChatStartResponse, ChatMessageRequest, ChatResponse, AnalyzeResponse, QuizRequest, QuizResponse, SingleLabRequest, MultipleLabRequest, LabAnalysisResponse, GeneralLabSummaryResponse
 from .health_guard import guard_or_message
-from .orchestrator import cascade_chat, finalize_text, cascade_analyze, finalize_analyze, parallel_quiz_analyze
+from .orchestrator import cascade_chat, finalize_text, cascade_analyze, finalize_analyze, parallel_quiz_analyze, parallel_single_lab_analyze, parallel_multiple_lab_analyze
 from .utils import parse_json_safe
 
 app = FastAPI(title="Longopass AI Gateway")
@@ -153,22 +153,77 @@ def analyze_quiz(body: QuizRequest,
     db.commit()
     return data
 
+@app.post("/ai/lab/single", response_model=LabAnalysisResponse)
+def analyze_single_lab(body: SingleLabRequest,
+                       db: Session = Depends(get_db),
+                       x_user_id: str | None = Header(default=None),
+                       x_user_plan: str | None = Header(default=None)):
+    """Analyze single lab test result (analysis only, no recommendations)"""
+    user = get_or_create_user(db, x_user_id, x_user_plan)
+    
+    # Convert test to dict for health guard
+    test_dict = body.test.model_dump()
+    ok, msg = guard_or_message(json.dumps(test_dict))
+    if not ok:
+        raise HTTPException(400, msg)
+
+    # Use parallel single lab analysis
+    res = parallel_single_lab_analyze(test_dict)
+    final_json = res["content"]
+    data = parse_json_safe(final_json) or {}
+    
+    # Store single lab analysis
+    db.add(Message(user_id=user.id, conversation_id=None, role="assistant", content=final_json, model_name="single_lab"))
+    db.commit()
+    return data
+
+@app.post("/ai/lab/summary", response_model=GeneralLabSummaryResponse)
+def analyze_multiple_lab_summary(body: MultipleLabRequest,
+                                 db: Session = Depends(get_db),
+                                 x_user_id: str | None = Header(default=None),
+                                 x_user_plan: str | None = Header(default=None)):
+    """Generate general summary of multiple lab tests"""
+    user = get_or_create_user(db, x_user_id, x_user_plan)
+    
+    # Convert tests to dict for health guard
+    tests_dict = [test.model_dump() for test in body.tests]
+    ok, msg = guard_or_message(json.dumps(tests_dict))
+    if not ok:
+        raise HTTPException(400, msg)
+
+    # Use parallel multiple lab analysis
+    res = parallel_multiple_lab_analyze(tests_dict, body.total_test_sessions)
+    final_json = res["content"]
+    data = parse_json_safe(final_json) or {}
+    
+    # Add metadata for response formatting
+    if "test_count" not in data:
+        data["test_count"] = body.total_test_sessions
+    if "overall_status" not in data:
+        data["overall_status"] = "analiz_tamamlandı"
+    
+    # Store multiple lab summary
+    db.add(Message(user_id=user.id, conversation_id=None, role="assistant", content=final_json, model_name="multiple_lab"))
+    db.commit()
+    return data
+
+# Legacy lab endpoint for backward compatibility
 @app.post("/ai/lab/analyze", response_model=AnalyzeResponse)
-def analyze_lab(body: LabBatchPayload,
-                db: Session = Depends(get_db),
-                x_user_id: str | None = Header(default=None),
-                x_user_plan: str | None = Header(default=None)):
+def analyze_lab_legacy(body: LabBatchPayload,
+                       db: Session = Depends(get_db),
+                       x_user_id: str | None = Header(default=None),
+                       x_user_plan: str | None = Header(default=None)):
+    """Legacy lab analysis endpoint (supplement recommendations)"""
     user = get_or_create_user(db, x_user_id, x_user_plan)
     ok, msg = guard_or_message(json.dumps(body.results))
     if not ok:
         raise HTTPException(400, msg)
 
     res = cascade_analyze({"lab_results": body.results})
-    # Temporarily bypass finalize_analyze to debug
     final_json = res["content"]
     data = parse_json_safe(final_json) or {}
-    # store
-    db.add(Message(user_id=user.id, conversation_id=None, role="assistant", content=final_json, model_name="analyze"))
+    
+    db.add(Message(user_id=user.id, conversation_id=None, role="assistant", content=final_json, model_name="lab_legacy"))
     db.commit()
     return data
 

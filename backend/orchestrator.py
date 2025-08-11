@@ -325,3 +325,199 @@ def quiz_fallback(quiz_answers: Dict[str, Any]) -> Dict[str, Any]:
         "content": '{"error": "Quiz analizi şu anda kullanılamıyor"}',
         "model_used": "fallback"
     }
+
+def build_single_lab_prompt(test_data: Dict[str, Any]) -> List[Dict[str, str]]:
+    """Build prompt for single lab test analysis (analysis only, no recommendations)"""
+    
+    test_info = f"Test Adı: {test_data.get('name', 'Bilinmiyor')}\n"
+    test_info += f"Sonuç: {test_data.get('value', 'Yok')} {test_data.get('unit', '')}\n"
+    if test_data.get('reference_range'):
+        test_info += f"Referans Aralığı: {test_data['reference_range']}\n"
+    
+    schema = (
+        "STRICT JSON ŞEMASI - LAB ANALİZİ (SADECE ANALİZ):\n"
+        "{\n"
+        '  "analysis": {\n'
+        '    "summary": "Test sonucunun kısa yorumu",\n'
+        '    "interpretation": "Sonucun anlamı ve önemi",\n'
+        '    "reference_comparison": "Referans aralığı ile karşılaştırma",\n'
+        '    "clinical_significance": "Klinik önemi",\n'
+        '    "follow_up_suggestions": "Takip önerileri (sadece genel tıbbi öneri)"\n'
+        "  }\n"
+        "}\n\n"
+        "SADECE ANALİZ YAP, SUPPLEMENт ÖNERİSİ VERME!"
+    )
+    
+    system_prompt = (
+        SYSTEM_HEALTH + " Sen bir laboratuvar sonuçları analiz uzmanısın. "
+        "SADECE ANALİZ yap, supplement ya da ilaç önerisi verme. "
+        "Sonuçları yorumla, klinik anlamını açıkla, genel tıbbi takip önerileri ver."
+    )
+    
+    user_prompt = f"Laboratuvar test sonucu:\n{test_info}\n\n{schema}"
+    
+    return [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt}
+    ]
+
+def build_multiple_lab_prompt(tests_data: List[Dict[str, Any]], session_count: int) -> List[Dict[str, str]]:
+    """Build prompt for multiple lab tests general summary"""
+    
+    tests_info = f"Toplam Test Seansı: {session_count}\n\n"
+    tests_info += "Test Sonuçları:\n"
+    for i, test in enumerate(tests_data, 1):
+        tests_info += f"{i}. {test.get('name', 'Test')}: {test.get('value', 'Yok')} {test.get('unit', '')}"
+        if test.get('reference_range'):
+            tests_info += f" (Referans: {test['reference_range']})"
+        tests_info += "\n"
+    
+    schema = (
+        "STRICT JSON ŞEMASI - GENEL LAB YORUMU:\n"
+        "{\n"
+        '  "general_assessment": {\n'
+        '    "title": "Genel Sağlık Durumu Değerlendirmesi",\n'
+        '    "overall_summary": "Tüm test sonuçlarının genel yorumu",\n'
+        '    "patterns_identified": "Tespit edilen paternler ve eğilimler",\n'
+        '    "areas_of_concern": "Dikkat edilmesi gereken alanlar",\n'
+        '    "positive_aspects": "Olumlu sonuçlar"\n'
+        "  },\n"
+        '  "overall_status": "normal/dikkat_gerekli/takip_önerilen"\n'
+        "}\n\n"
+        "SADECE ANALİZ YAP, TEDAVİ ÖNERİSİ VERME!"
+    )
+    
+    system_prompt = (
+        SYSTEM_HEALTH + " Sen bir laboratuvar sonuçları genel değerlendirme uzmanısın. "
+        "Birden fazla test sonucunu genel olarak yorumla. "
+        "SADECE ANALİZ yap, tedavi ya da ilaç önerisi verme. "
+        "Genel sağlık durumu hakkında bilgi ver."
+    )
+    
+    user_prompt = f"Laboratuvar test sonuçları:\n{tests_info}\n\n{schema}"
+    
+    return [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt}
+    ]
+
+def parallel_single_lab_analyze(test_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Analyze single lab test with parallel LLMs"""
+    try:
+        messages = build_single_lab_prompt(test_data)
+        
+        # Parallel analysis
+        responses = []
+        with ThreadPoolExecutor(max_workers=len(PARALLEL_MODELS)) as executor:
+            future_to_model = {
+                executor.submit(call_chat_model, model, messages, 0.3, 1200): model 
+                for model in PARALLEL_MODELS
+            }
+            
+            for future in as_completed(future_to_model):
+                model = future_to_model[future]
+                try:
+                    result = future.result()
+                    if result["content"].strip():
+                        responses.append({
+                            "model": model,
+                            "response": result["content"]
+                        })
+                except Exception as e:
+                    print(f"Single lab model {model} failed: {e}")
+                    continue
+        
+        if not responses:
+            return single_lab_fallback(test_data)
+        
+        # Synthesis
+        synthesis_prompt = build_lab_synthesis_prompt(responses, "single")
+        final_result = call_chat_model(SYNTHESIS_MODEL, synthesis_prompt, temperature=0.1, max_tokens=1500)
+        
+        final_result["models_used"] = [r["model"] for r in responses]
+        return final_result
+        
+    except Exception as e:
+        print(f"Single lab analyze failed: {e}")
+        return single_lab_fallback(test_data)
+
+def parallel_multiple_lab_analyze(tests_data: List[Dict[str, Any]], session_count: int) -> Dict[str, Any]:
+    """Analyze multiple lab tests for general summary"""
+    try:
+        messages = build_multiple_lab_prompt(tests_data, session_count)
+        
+        # Parallel analysis
+        responses = []
+        with ThreadPoolExecutor(max_workers=len(PARALLEL_MODELS)) as executor:
+            future_to_model = {
+                executor.submit(call_chat_model, model, messages, 0.3, 1500): model 
+                for model in PARALLEL_MODELS
+            }
+            
+            for future in as_completed(future_to_model):
+                model = future_to_model[future]
+                try:
+                    result = future.result()
+                    if result["content"].strip():
+                        responses.append({
+                            "model": model,
+                            "response": result["content"]
+                        })
+                except Exception as e:
+                    print(f"Multiple lab model {model} failed: {e}")
+                    continue
+        
+        if not responses:
+            return multiple_lab_fallback(tests_data, session_count)
+        
+        # Synthesis
+        synthesis_prompt = build_lab_synthesis_prompt(responses, "multiple")
+        final_result = call_chat_model(SYNTHESIS_MODEL, synthesis_prompt, temperature=0.1, max_tokens=1800)
+        
+        final_result["models_used"] = [r["model"] for r in responses]
+        return final_result
+        
+    except Exception as e:
+        print(f"Multiple lab analyze failed: {e}")
+        return multiple_lab_fallback(tests_data, session_count)
+
+def build_lab_synthesis_prompt(responses: List[Dict[str, str]], analysis_type: str) -> List[Dict[str, str]]:
+    """Build synthesis prompt for lab analysis"""
+    system_prompt = (
+        SYSTEM_HEALTH + " Sen bir laboratuvar analizi synthesis uzmanısın. "
+        "Birden fazla AI modelin verdiği lab analizlerini inceleyip, "
+        "en doğru ve kapsamlı analizi üret. "
+        "\n\nKurallar:"
+        "\n1. SADECE JSON formatında yanıt ver"
+        "\n2. SADECE ANALİZ yap, supplement/ilaç önerisi verme"
+        "\n3. En doğru ve tutarlı yorumu birleştir"
+        "\n4. Klinik anlamı net açıkla"
+        "\n5. Genel tıbbi takip önerileri ver"
+    )
+    
+    responses_text = "\n\n=== MODEL RESPONSES ===\n"
+    for i, resp in enumerate(responses, 1):
+        responses_text += f"\nMODEL {i} ({resp['model']}):\n{resp['response']}\n"
+    
+    task_desc = "tek test analizi" if analysis_type == "single" else "genel test özeti"
+    responses_text += f"\n=== SYNTHESIS GÖREV ===\n"
+    responses_text += f"Yukarıdaki {task_desc} sonuçlarını analiz et ve en iyi laboratuvar yorumu oluştur."
+    
+    return [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": responses_text}
+    ]
+
+def single_lab_fallback(test_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Fallback for single lab analysis"""
+    return {
+        "content": '{"analysis": {"summary": "Test analizi şu anda kullanılamıyor", "interpretation": "Sistem bakımda"}}',
+        "model_used": "fallback"
+    }
+
+def multiple_lab_fallback(tests_data: List[Dict[str, Any]], session_count: int) -> Dict[str, Any]:
+    """Fallback for multiple lab analysis"""
+    return {
+        "content": f'{{"general_assessment": {{"title": "Genel Sağlık Durumu", "overall_summary": "Analiz sistemi şu anda kullanılamıyor"}}, "overall_status": "sistem_bakımda"}}',
+        "model_used": "fallback"
+    }
