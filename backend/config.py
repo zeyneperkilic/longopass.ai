@@ -9,16 +9,24 @@ OPENROUTER_BASE_URL = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/ap
 # Parallel LLM processing models (run simultaneously)
 PARALLEL_MODELS = [m.strip() for m in os.getenv(
     "PARALLEL_MODELS",
-    # Multiple models for diverse analysis (run in parallel)
-    "google/gemini-2.5-pro,x-ai/grok-2,deepseek/deepseek-r1,meta-llama/llama-3.1-8b-instruct"
+    # New web search enabled models (run in parallel)
+    "openai/gpt-4o:online,google/gemini-2.5-pro:online,x-ai/grok-4:online,anthropic/claude-sonnet-4:online"
 ).split(",") if m.strip()]
 
 # High-quality synthesis model (combines parallel results)
-SYNTHESIS_MODEL = os.getenv("SYNTHESIS_MODEL", "openai/gpt-5-chat")
+SYNTHESIS_MODEL = os.getenv("SYNTHESIS_MODEL", "openai/gpt-5-chat:online")
 
 # Keep old names for backward compatibility
 CASCADE_MODELS = PARALLEL_MODELS
 FINALIZER_MODEL = SYNTHESIS_MODEL
+
+# OLD MODELS (commented out for backup)
+# PARALLEL_MODELS = [m.strip() for m in os.getenv(
+#     "PARALLEL_MODELS",
+#     # Multiple models for diverse analysis (run in parallel)
+#     "google/gemini-2.5-pro,x-ai/grok-2,deepseek/deepseek-r1,meta-llama/llama-3.1-8b-instruct"
+# ).split(",") if m.strip()]
+# SYNTHESIS_MODEL = os.getenv("SYNTHESIS_MODEL", "openai/gpt-5-chat")
 
 PARALLEL_TIMEOUT_MS = int(os.getenv("PARALLEL_TIMEOUT_MS", "8000"))
 # Backward compatibility
