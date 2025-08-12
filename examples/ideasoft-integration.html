@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IdeaSoft - Longopass AI Entegrasyon Örneği</title>
+    
+    <!-- Longopass AI Widget -->
+    <script src="https://longopass-ai.onrender.com/widget.js"></script>
+    
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .section {
+            margin-bottom: 40px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+        }
+        
+        .section h2 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+        
+        /* Quiz Form Styling */
+        .quiz-form {
+            display: grid;
+            gap: 15px;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .form-group label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #34495e;
+        }
+        
+        .form-group input,
+        .form-group select {
+            padding: 10px;
+            border: 1px solid #bdc3c7;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        
+        .checkbox-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 5px;
+        }
+        
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+        }
+        
+        .checkbox-item input {
+            margin-right: 8px;
+        }
+        
+        /* Lab Test Form */
+        .lab-test-form {
+            display: grid;
+            gap: 15px;
+        }
+        
+        .test-input-group {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 2fr;
+            gap: 10px;
+            align-items: end;
+        }
+        
+        /* Buttons */
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary {
+            background-color: #3498db;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #2980b9;
+        }
+        
+        .btn-success {
+            background-color: #27ae60;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background-color: #219a52;
+        }
+        
+        /* Results Display */
+        .results {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #ecf0f1;
+            border-radius: 5px;
+            border-left: 4px solid #3498db;
+        }
+        
+        .results h3 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+        
+        .recommendation-item {
+            background: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border-left: 3px solid #e74c3c;
+        }
+        
+        .recommendation-item h4 {
+            margin: 0 0 10px 0;
+            color: #c0392b;
+        }
+        
+        /* Widget Container */
+        #longopass-ai-widget {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+        
+        /* Product Recommendations */
+        .product-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .product-card {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            background: white;
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+        
+        .product-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .product-card img {
+            width: 100%;
+            max-width: 150px;
+            height: 150px;
+            object-fit: cover;
+            border-radius: 5px;
+        }
+        
+        .product-card h5 {
+            margin: 10px 0;
+            color: #2c3e50;
+        }
+        
+        .product-card .price {
+            font-size: 18px;
+            font-weight: bold;
+            color: #e74c3c;
+        }
+        
+        .product-card .add-to-cart {
+            margin-top: 10px;
+            padding: 8px 15px;
+            background-color: #27ae60;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 IdeaSoft - Longopass AI Entegrasyon Örneği</h1>
+        <p>Bu sayfa, Longopass AI sisteminin IdeaSoft e-ticaret sitenizle nasıl entegre edileceğini gösterir.</p>
+        
+        <!-- Quiz Section -->
+        <div class="section">
+            <h2>🧪 Sağlık Quiz'i</h2>
+            <p>Müşterileriniz bu quiz'i doldurarak kişiselleştirilmiş supplement önerileri alabilir.</p>
+            
+            <form id="quiz-form" class="quiz-form">
+                <div class="form-group">
+                    <label for="age">Yaş:</label>
+                    <input type="number" id="age" name="age" min="18" max="80" value="30" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="gender">Cinsiyet:</label>
+                    <select id="gender" name="gender" required>
+                        <option value="female">Kadın</option>
+                        <option value="male">Erkek</option>
+                        <option value="other">Diğer</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="activity_level">Aktivite Seviyesi:</label>
+                    <select id="activity_level" name="activity_level" required>
+                        <option value="sedentary">Hareketsiz (masa başı iş)</option>
+                        <option value="light">Hafif aktif (haftada 1-3 gün)</option>
+                        <option value="moderate" selected>Orta aktif (haftada 3-5 gün)</option>
+                        <option value="very_active">Çok aktif (haftada 6-7 gün)</option>
+                        <option value="extremely_active">Aşırı aktif (günde 2 kez)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Hedefleriniz (birden fazla seçebilirsiniz):</label>
+                    <div class="checkbox-group">
+                        <div class="checkbox-item">
+                            <input type="checkbox" name="goals" value="weight_loss" id="goal_weight_loss">
+                            <label for="goal_weight_loss">Kilo verme</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" name="goals" value="muscle_gain" id="goal_muscle_gain">
+                            <label for="goal_muscle_gain">Kas kazanımı</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" name="goals" value="energy" id="goal_energy" checked>
+                            <label for="goal_energy">Enerji artışı</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" name="goals" value="immunity" id="goal_immunity">
+                            <label for="goal_immunity">Bağışıklık güçlendirme</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" name="goals" value="sleep" id="goal_sleep">
+                            <label for="goal_sleep">Uyku kalitesi</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Beslenme kısıtlarınız:</label>
+                    <div class="checkbox-group">
+                        <div class="checkbox-item">
+                            <input type="checkbox" name="dietary_restrictions" value="vegetarian" id="diet_vegetarian">
+                            <label for="diet_vegetarian">Vejetaryen</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" name="dietary_restrictions" value="vegan" id="diet_vegan">
+                            <label for="diet_vegan">Vegan</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" name="dietary_restrictions" value="gluten_free" id="diet_gluten">
+                            <label for="diet_gluten">Glütensiz</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" name="dietary_restrictions" value="lactose_free" id="diet_lactose">
+                            <label for="diet_lactose">Laktozsuz</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="sleep_quality">Uyku Kalitesi:</label>
+                    <select id="sleep_quality" name="sleep_quality" required>
+                        <option value="poor">Kötü</option>
+                        <option value="fair">Orta</option>
+                        <option value="good" selected>İyi</option>
+                        <option value="excellent">Mükemmel</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="stress_level">Stres Seviyesi:</label>
+                    <select id="stress_level" name="stress_level" required>
+                        <option value="low">Düşük</option>
+                        <option value="medium" selected>Orta</option>
+                        <option value="high">Yüksek</option>
+                    </select>
+                </div>
+                
+                <button type="submit" class="btn btn-primary">🧪 Quiz'i Analiz Et</button>
+            </form>
+            
+            <div id="quiz-results" class="results" style="display: none;">
+                <h3>📋 Kişiselleştirilmiş Önerileriniz</h3>
+                <div id="quiz-recommendations"></div>
+            </div>
+            
+            <div id="recommended-products" class="product-grid" style="display: none;">
+                <!-- Önerilen ürünler buraya gelecek -->
+            </div>
+        </div>
+        
+        <!-- Lab Test Section -->
+        <div class="section">
+            <h2>🔬 Lab Test Analizi</h2>
+            <p>Müşterileriniz lab test sonuçlarını yükleyerek AI destekli analiz alabilir.</p>
+            
+            <div class="lab-test-form">
+                <h3>Tek Test Analizi</h3>
+                <div class="test-input-group">
+                    <input type="text" id="test-name" placeholder="Test Adı (ör: Hemoglobin)" value="Hemoglobin">
+                    <input type="number" id="test-value" placeholder="Değer" step="0.1" value="8.5">
+                    <input type="text" id="test-unit" placeholder="Birim" value="g/dL">
+                    <input type="text" id="test-range" placeholder="Referans Aralığı" value="12.0-15.5 g/dL">
+                </div>
+                <button type="button" class="btn btn-success" onclick="analyzeSingleTest()">🔬 Tek Test Analiz Et</button>
+                
+                <div id="single-test-results" class="results" style="display: none;">
+                    <h3>📊 Test Analizi</h3>
+                    <div id="single-test-content"></div>
+                </div>
+            </div>
+            
+            <hr style="margin: 30px 0;">
+            
+            <div class="lab-test-form">
+                <h3>Genel Test Özeti</h3>
+                <p>Birden fazla test sonucunuzun genel değerlendirmesi için:</p>
+                <input type="number" id="session-count" placeholder="Toplam test seansı sayısı" min="1" value="5">
+                <button type="button" class="btn btn-success" onclick="analyzeMultipleTests()">📊 Genel Özet Al</button>
+                
+                <div id="multiple-test-results" class="results" style="display: none;">
+                    <h3>📈 Genel Test Özeti</h3>
+                    <div id="multiple-test-content"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Chat Section -->
+        <div class="section">
+            <h2>💬 AI Chat Asistanı</h2>
+            <p>Premium müşterileriniz AI chat asistanı ile sağlık konularında konuşabilir. Chat widget sağ alt köşede görünür.</p>
+            <p><strong>Not:</strong> Chat özelliği yalnızca premium kullanıcılar için aktiftir.</p>
+        </div>
+    </div>
+    
+    <!-- Longopass AI Widget Container -->
+    <div id="longopass-ai-widget"></div>
+    
+    <script>
+        // Widget'i başlat
+        document.addEventListener('DOMContentLoaded', function() {
+            // IdeaSoft user bilgilerini al (örnek)
+            const currentUser = getCurrentUser();
+            
+            window.LongopassAI.init({
+                container: '#longopass-ai-widget',
+                userPlan: currentUser.plan, // 'premium' veya 'free'
+                userId: currentUser.id,
+                theme: 'light',
+                position: 'bottom-right'
+            });
+        });
+        
+        // IdeaSoft user bilgilerini alma (örnek fonksiyon)
+        function getCurrentUser() {
+            // Bu fonksiyon IdeaSoft'un user session sisteminden bilgileri almalı
+            return {
+                id: 'user_' + Math.random().toString(36).substr(2, 9),
+                plan: 'premium', // veya 'free'
+                name: 'Örnek Kullanıcı',
+                email: 'ornek@email.com'
+            };
+        }
+        
+        // Quiz form submit handler
+        document.getElementById('quiz-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const quizAnswers = {
+                age: parseInt(formData.get('age')),
+                gender: formData.get('gender'),
+                activity_level: formData.get('activity_level'),
+                goals: formData.getAll('goals'),
+                dietary_restrictions: formData.getAll('dietary_restrictions'),
+                current_supplements: [],
+                health_conditions: [],
+                sleep_quality: formData.get('sleep_quality'),
+                stress_level: formData.get('stress_level')
+            };
+            
+            // Loading state
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            const originalText = submitBtn.textContent;
+            submitBtn.textContent = '⏳ Analiz ediliyor...';
+            submitBtn.disabled = true;
+            
+            // Longopass AI API'ye quiz gönder
+            fetch('https://longopass-ai.onrender.com/ai/quiz', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-User-Plan': getCurrentUser().plan,
+                    'X-User-ID': getCurrentUser().id
+                },
+                body: JSON.stringify({ answers: quizAnswers })
+            })
+            .then(response => response.json())
+            .then(data => {
+                displayQuizResults(data);
+                
+                // Ürün önerilerini göster
+                if (data.supplements) {
+                    displayProductRecommendations(data.supplements);
+                }
+            })
+            .catch(error => {
+                console.error('Quiz analizi hatası:', error);
+                alert('Quiz analizi sırasında bir hata oluştu. Lütfen tekrar deneyin.');
+            })
+            .finally(() => {
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
+            });
+        });
+        
+        // Quiz sonuçlarını göster
+        function displayQuizResults(data) {
+            const resultsDiv = document.getElementById('quiz-results');
+            const recommendationsDiv = document.getElementById('quiz-recommendations');
+            
+            let html = '';
+            
+            if (data.supplements && data.supplements.length > 0) {
+                html += '<h4>💊 Supplement Önerileri</h4>';
+                data.supplements.forEach(supp => {
+                    html += `
+                        <div class="recommendation-item">
+                            <h4>${supp.name}</h4>
+                            <p><strong>Neden:</strong> ${supp.reason}</p>
+                            <p><strong>Dozaj:</strong> ${supp.dosage}</p>
+                            <p><strong>Zamanı:</strong> ${supp.timing}</p>
+                        </div>
+                    `;
+                });
+            }
+            
+            if (data.nutrition && data.nutrition.length > 0) {
+                html += '<h4>🥗 Beslenme Önerileri</h4>';
+                data.nutrition.forEach(nutr => {
+                    html += `
+                        <div class="recommendation-item">
+                            <h4>${nutr.recommendation}</h4>
+                            <p>${nutr.details}</p>
+                            ${nutr.food_sources ? `<p><strong>Kaynak gıdalar:</strong> ${nutr.food_sources.join(', ')}</p>` : ''}
+                        </div>
+                    `;
+                });
+            }
+            
+            if (data.lifestyle && data.lifestyle.length > 0) {
+                html += '<h4>🏃‍♂️ Yaşam Tarzı Önerileri</h4>';
+                data.lifestyle.forEach(life => {
+                    html += `
+                        <div class="recommendation-item">
+                            <h4>${life.category}: ${life.suggestion}</h4>
+                            <p><strong>Faydası:</strong> ${life.benefit}</p>
+                        </div>
+                    `;
+                });
+            }
+            
+            recommendationsDiv.innerHTML = html;
+            resultsDiv.style.display = 'block';
+        }
+        
+        // Ürün önerilerini göster (IdeaSoft ürün kataloğu ile entegrasyon)
+        function displayProductRecommendations(supplements) {
+            const productsDiv = document.getElementById('recommended-products');
+            let html = '<h3>🛒 Önerilen Ürünler</h3>';
+            
+            // Örnek ürünler (gerçek entegrasyonda IdeaSoft API'sinden gelecek)
+            const exampleProducts = [
+                {
+                    id: 1,
+                    name: 'Premium Magnezyum 400mg',
+                    price: '89.90',
+                    image: 'https://via.placeholder.com/150x150/3498db/ffffff?text=Mg',
+                    description: 'Yüksek absorpsiyonlu magnezyum bisglisinat',
+                    match: 'Magnezyum'
+                },
+                {
+                    id: 2,
+                    name: 'Vitamin D3 5000 IU',
+                    price: '69.90',
+                    image: 'https://via.placeholder.com/150x150/f39c12/ffffff?text=D3',
+                    description: 'Yüksek potansli D3 vitamini',
+                    match: 'D Vitamini'
+                },
+                {
+                    id: 3,
+                    name: 'Omega-3 Fish Oil',
+                    price: '129.90',
+                    image: 'https://via.placeholder.com/150x150/2ecc71/ffffff?text=Ω3',
+                    description: 'Saf balık yağı omega-3',
+                    match: 'Omega-3'
+                }
+            ];
+            
+            supplements.forEach(supplement => {
+                // Her supplement için eşleşen ürünleri bul
+                const matchingProducts = exampleProducts.filter(product => 
+                    supplement.name.toLowerCase().includes(product.match.toLowerCase()) ||
+                    product.name.toLowerCase().includes(supplement.name.toLowerCase())
+                );
+                
+                matchingProducts.forEach(product => {
+                    html += `
+                        <div class="product-card">
+                            <img src="${product.image}" alt="${product.name}">
+                            <h5>${product.name}</h5>
+                            <p>${product.description}</p>
+                            <div class="price">₺${product.price}</div>
+                            <button class="add-to-cart" onclick="addToCart(${product.id})">
+                                🛒 Sepete Ekle
+                            </button>
+                            <small style="color: #7f8c8d; margin-top: 5px; display: block;">
+                                ${supplement.reason}
+                            </small>
+                        </div>
+                    `;
+                });
+            });
+            
+            productsDiv.innerHTML = html;
+            productsDiv.style.display = 'grid';
+        }
+        
+        // Tek test analizi
+        function analyzeSingleTest() {
+            const testData = {
+                name: document.getElementById('test-name').value,
+                value: document.getElementById('test-value').value,
+                unit: document.getElementById('test-unit').value,
+                reference_range: document.getElementById('test-range').value
+            };
+            
+            if (!testData.name || !testData.value || !testData.unit || !testData.reference_range) {
+                alert('Lütfen tüm test bilgilerini doldurun.');
+                return;
+            }
+            
+            fetch('https://longopass-ai.onrender.com/ai/lab/single', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-User-Plan': getCurrentUser().plan,
+                    'X-User-ID': getCurrentUser().id
+                },
+                body: JSON.stringify({ test: testData })
+            })
+            .then(response => response.json())
+            .then(data => {
+                displaySingleTestResults(data);
+            })
+            .catch(error => {
+                console.error('Test analizi hatası:', error);
+                alert('Test analizi sırasında bir hata oluştu.');
+            });
+        }
+        
+        // Çoklu test analizi
+        function analyzeMultipleTests() {
+            const sessionCount = parseInt(document.getElementById('session-count').value) || 5;
+            
+            // Örnek test verileri (gerçek entegrasyonda kullanıcının testleri gelecek)
+            const testsData = [
+                {
+                    name: "Hemoglobin",
+                    value: "8.5",
+                    unit: "g/dL",
+                    reference_range: "12.0-15.5 g/dL"
+                },
+                {
+                    name: "Vitamin D",
+                    value: "18",
+                    unit: "ng/mL", 
+                    reference_range: "20-50 ng/mL"
+                },
+                {
+                    name: "Total Kolesterol",
+                    value: "190",
+                    unit: "mg/dL",
+                    reference_range: "<200 mg/dL"
+                }
+            ];
+            
+            fetch('https://longopass-ai.onrender.com/ai/lab/summary', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-User-Plan': getCurrentUser().plan,
+                    'X-User-ID': getCurrentUser().id
+                },
+                body: JSON.stringify({ 
+                    tests: testsData,
+                    total_test_sessions: sessionCount
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                displayMultipleTestResults(data);
+            })
+            .catch(error => {
+                console.error('Test özeti hatası:', error);
+                alert('Test özeti sırasında bir hata oluştu.');
+            });
+        }
+        
+        // Tek test sonuçlarını göster
+        function displaySingleTestResults(data) {
+            const resultsDiv = document.getElementById('single-test-results');
+            const contentDiv = document.getElementById('single-test-content');
+            
+            if (data.analysis) {
+                const analysis = data.analysis;
+                contentDiv.innerHTML = `
+                    <h4>📋 Özet</h4>
+                    <p>${analysis.summary}</p>
+                    
+                    <h4>🔍 Yorumlama</h4>
+                    <p>${analysis.interpretation}</p>
+                    
+                    <h4>📊 Referans Karşılaştırması</h4>
+                    <p>${analysis.reference_comparison}</p>
+                    
+                    <h4>⚕️ Klinik Önemi</h4>
+                    <p>${analysis.clinical_significance}</p>
+                    
+                    <h4>📋 Takip Önerileri</h4>
+                    <p>${analysis.follow_up_suggestions}</p>
+                    
+                    <div style="margin-top: 15px; padding: 10px; background-color: #fff3cd; border-left: 4px solid #ffc107; color: #856404;">
+                        <small><strong>Uyarı:</strong> ${data.disclaimer}</small>
+                    </div>
+                `;
+            } else {
+                contentDiv.innerHTML = '<p>Test analizi alınamadı. Lütfen tekrar deneyin.</p>';
+            }
+            
+            resultsDiv.style.display = 'block';
+        }
+        
+        // Çoklu test sonuçlarını göster
+        function displayMultipleTestResults(data) {
+            const resultsDiv = document.getElementById('multiple-test-results');
+            const contentDiv = document.getElementById('multiple-test-content');
+            
+            if (data.summary) {
+                const summary = data.summary;
+                contentDiv.innerHTML = `
+                    <h4>🔬 Genel Değerlendirme</h4>
+                    <p>${summary.general_assessment}</p>
+                    
+                    <h4>📈 Genel Durum</h4>
+                    <p>${summary.overall_status}</p>
+                    
+                    <div style="margin-top: 15px; padding: 10px; background-color: #fff3cd; border-left: 4px solid #ffc107; color: #856404;">
+                        <small><strong>Uyarı:</strong> ${data.disclaimer}</small>
+                    </div>
+                `;
+            } else {
+                contentDiv.innerHTML = '<p>Test özeti alınamadı. Lütfen tekrar deneyin.</p>';
+            }
+            
+            resultsDiv.style.display = 'block';
+        }
+        
+        // Sepete ekleme (IdeaSoft entegrasyonu için)
+        function addToCart(productId) {
+            // IdeaSoft'un sepete ekleme API'sini çağır
+            console.log('Ürün sepete ekleniyor:', productId);
+            
+            // Örnek IdeaSoft API çağrısı:
+            /*
+            fetch('/api/cart/add', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({
+                    product_id: productId,
+                    quantity: 1
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Ürün sepete eklendi!');
+                    // Sepet sayısını güncelle
+                    updateCartCount();
+                }
+            });
+            */
+            
+            alert(`Ürün #${productId} sepete eklendi! (Demo)`);
+        }
+        
+        // Widget olaylarını dinle
+        document.addEventListener('longopass-quiz-complete', function(event) {
+            const recommendations = event.detail;
+            console.log('Widget\'ten quiz tamamlandı:', recommendations);
+            displayQuizResults(recommendations);
+        });
+        
+        document.addEventListener('longopass-lab-complete', function(event) {
+            const analysis = event.detail;
+            console.log('Widget\'ten lab analizi tamamlandı:', analysis);
+            if (analysis.type === 'single') {
+                displaySingleTestResults(analysis.data);
+            } else {
+                displayMultipleTestResults(analysis.data);
+            }
+        });
+        
+        // Widget chat olayları
+        document.addEventListener('longopass-chat-start', function(event) {
+            console.log('Chat başladı:', event.detail);
+        });
+        
+        document.addEventListener('longopass-chat-message', function(event) {
+            console.log('Chat mesajı:', event.detail);
+        });
+    </script>
+</body>
+</html>

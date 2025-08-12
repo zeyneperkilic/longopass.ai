@@ -66,9 +66,30 @@ class LabAnalysisResponse(BaseModel):
 
 class GeneralLabSummaryResponse(BaseModel):
     title: str = "Tüm Testlerin Genel Yorumu"
-    general_assessment: Dict[str, Any] = Field(default_factory=dict)
-    test_count: int
-    overall_status: str
+    
+    # Kısa analiz - Tüm testlerin genel değerlendirmesi
+    general_assessment: Dict[str, Any] = Field(default_factory=dict, description="Genel sağlık durumu değerlendirmesi")
+    test_count: int = Field(description="Toplam test sayısı")
+    overall_status: str = Field(description="Genel durum: normal, dikkat_edilmeli, kritik")
+    
+    # Günlük hayat tavsiyeleri
+    lifestyle_recommendations: Dict[str, List[str]] = Field(
+        default_factory=dict,
+        description="Günlük hayat önerileri: egzersiz, beslenme, uyku, stres yönetimi"
+    )
+    
+    # Supplement önerileri - Eksik değerler için
+    supplement_recommendations: List[SupplementRecommendation] = Field(
+        default_factory=list,
+        description="Lab sonuçlarına göre önerilen supplementler"
+    )
+    
+    # Test bazlı detaylar
+    test_details: Dict[str, Dict[str, Any]] = Field(
+        default_factory=dict,
+        description="Her test için detaylı yorum ve öneriler"
+    )
+    
     disclaimer: str = "Bu içerik bilgilendirme amaçlıdır; tıbbi tanı/tedavi için hekiminize başvurun."
 
 # Legacy schemas for compatibility

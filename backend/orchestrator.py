@@ -451,25 +451,51 @@ def build_multiple_lab_prompt(tests_data: List[Dict[str, Any]], session_count: i
         tests_info += "\n"
     
     schema = (
-        "STRICT JSON ŞEMASI - GENEL LAB YORUMU:\n"
+        "STRICT JSON ŞEMASI - KAPSAMLI LAB ANALİZİ:\n"
         "{\n"
         '  "general_assessment": {\n'
-        '    "title": "Genel Sağlık Durumu Değerlendirmesi",\n'
         '    "overall_summary": "Tüm test sonuçlarının genel yorumu",\n'
         '    "patterns_identified": "Tespit edilen paternler ve eğilimler",\n'
         '    "areas_of_concern": "Dikkat edilmesi gereken alanlar",\n'
-        '    "positive_aspects": "Olumlu sonuçlar"\n'
+        '    "positive_aspects": "Olumlu sonuçlar",\n'
+        '    "metabolic_status": "Metabolik durum değerlendirmesi",\n'
+        '    "nutritional_status": "Beslenme durumu"\n'
         "  },\n"
-        '  "overall_status": "normal/dikkat_gerekli/takip_önerilen"\n'
+        '  "overall_status": "normal/dikkat_edilmeli/kritik",\n'
+        '  "lifestyle_recommendations": {\n'
+        '    "exercise": ["Egzersiz önerileri"],\n'
+        '    "nutrition": ["Beslenme önerileri"],\n'
+        '    "sleep": ["Uyku önerileri"],\n'
+        '    "stress_management": ["Stres yönetimi önerileri"]\n'
+        "  },\n"
+        '  "supplement_recommendations": [\n'
+        '    {\n'
+        '    "name": "Supplement adı",\n'
+        '    "description": "Neden önerildiği",\n'
+ '    "daily_dose": "Günlük doz",\n'
+        '    "benefits": ["Faydaları"],\n'
+        '    "warnings": ["Uyarılar"],\n'
+        '    "priority": "high/medium/low"\n'
+        '    }\n'
+        "  ],\n"
+        '  "test_details": {\n'
+        '    "test_name": {\n'
+        '    "interpretation": "Test yorumu",\n'
+        '    "significance": "Önemi",\n'
+        '    "suggestions": "Öneriler"\n'
+        '    }\n'
+        "  }\n"
         "}\n\n"
-        "SADECE ANALİZ YAP, TEDAVİ ÖNERİSİ VERME!"
+        "ÖNEMLİ: Lab sonuçlarına göre günlük hayat önerileri ve supplement önerileri ver!"
     )
     
     system_prompt = (
-        SYSTEM_HEALTH + " Sen bir laboratuvar sonuçları genel değerlendirme uzmanısın. "
-        "Birden fazla test sonucunu genel olarak yorumla. "
-        "SADECE ANALİZ yap, tedavi ya da ilaç önerisi verme. "
-        "Genel sağlık durumu hakkında bilgi ver."
+        SYSTEM_HEALTH + " Sen bir laboratuvar sonuçları ve sağlık danışmanlığı uzmanısın. "
+        "Birden fazla test sonucunu analiz et, genel sağlık durumunu değerlendir. "
+        "Günlük hayat için pratik öneriler ver (egzersiz, beslenme, uyku, stres yönetimi). "
+        "Eksik değerler için uygun supplement önerileri yap. "
+        "Her test için detaylı yorum ekle. "
+        "Tıbbi tanı koyma, sadece bilgilendirme amaçlı öneriler ver."
     )
     
     user_prompt = f"Laboratuvar test sonuçları:\n{tests_info}\n\n{schema}"
@@ -550,7 +576,7 @@ def parallel_multiple_lab_analyze(tests_data: List[Dict[str, Any]], session_coun
         
         # Synthesis
         synthesis_prompt = build_lab_synthesis_prompt(responses, "multiple")
-        final_result = call_chat_model(SYNTHESIS_MODEL, synthesis_prompt, temperature=0.1, max_tokens=1800)
+        final_result = call_chat_model(SYNTHESIS_MODEL, synthesis_prompt, temperature=0.1, max_tokens=2500)
         
         final_result["models_used"] = [r["model"] for r in responses]
         return final_result
@@ -561,23 +587,38 @@ def parallel_multiple_lab_analyze(tests_data: List[Dict[str, Any]], session_coun
 
 def build_lab_synthesis_prompt(responses: List[Dict[str, str]], analysis_type: str) -> List[Dict[str, str]]:
     """Build synthesis prompt for lab analysis"""
-    system_prompt = (
-        SYSTEM_HEALTH + " Sen bir laboratuvar analizi synthesis uzmanısın. "
-        "Birden fazla AI modelin verdiği lab analizlerini inceleyip, "
-        "en doğru ve kapsamlı analizi üret. "
-        "\n\nKurallar:"
-        "\n1. SADECE JSON formatında yanıt ver"
-        "\n2. SADECE ANALİZ yap, supplement/ilaç önerisi verme"
-        "\n3. En doğru ve tutarlı yorumu birleştir"
-        "\n4. Klinik anlamı net açıkla"
-        "\n5. Genel tıbbi takip önerileri ver"
-    )
+    
+    if analysis_type == "single":
+        system_prompt = (
+            SYSTEM_HEALTH + " Sen bir laboratuvar analizi synthesis uzmanısın. "
+            "Birden fazla AI modelin verdiği tek test analizlerini inceleyip, "
+            "en doğru ve kapsamlı analizi üret. "
+            "\n\nKurallar:"
+            "\n1. SADECE JSON formatında yanıt ver"
+            "\n2. SADECE ANALİZ yap, supplement/ilaç önerisi verme"
+            "\n3. En doğru ve tutarlı yorumu birleştir"
+            "\n4. Klinik anlamı net açıkla"
+            "\n5. Genel tıbbi takip önerileri ver"
+        )
+    else:  # multiple
+        system_prompt = (
+            SYSTEM_HEALTH + " Sen bir laboratuvar analizi ve sağlık danışmanlığı synthesis uzmanısın. "
+            "Birden fazla AI modelin verdiği genel lab analizlerini inceleyip, "
+            "en doğru ve kapsamlı analizi üret. "
+            "\n\nKurallar:"
+            "\n1. SADECE JSON formatında yanıt ver"
+            "\n2. Genel sağlık durumu değerlendirmesi yap"
+            "\n3. Günlük hayat önerileri ver (egzersiz, beslenme, uyku, stres)"
+            "\n4. Eksik değerler için supplement önerileri yap"
+            "\n5. Her test için detaylı yorum ekle"
+            "\n6. Tıbbi tanı koyma, sadece bilgilendirme amaçlı öneriler ver"
+        )
     
     responses_text = "\n\n=== MODEL RESPONSES ===\n"
     for i, resp in enumerate(responses, 1):
         responses_text += f"\nMODEL {i} ({resp['model']}):\n{resp['response']}\n"
     
-    task_desc = "tek test analizi" if analysis_type == "single" else "genel test özeti"
+    task_desc = "tek test analizi" if analysis_type == "single" else "kapsamlı genel test analizi"
     responses_text += f"\n=== SYNTHESIS GÖREV ===\n"
     responses_text += f"Yukarıdaki {task_desc} sonuçlarını analiz et ve en iyi laboratuvar yorumu oluştur."
     
@@ -596,6 +637,6 @@ def single_lab_fallback(test_data: Dict[str, Any]) -> Dict[str, Any]:
 def multiple_lab_fallback(tests_data: List[Dict[str, Any]], session_count: int) -> Dict[str, Any]:
     """Fallback for multiple lab analysis"""
     return {
-        "content": f'{{"general_assessment": {{"title": "Genel Sağlık Durumu", "overall_summary": "Analiz sistemi geçici olarak kullanılamıyor"}}, "overall_status": "geçici_bakım"}}',
+        "content": f'{{"general_assessment": {{"overall_summary": "Analiz sistemi geçici olarak kullanılamıyor", "patterns_identified": [], "areas_of_concern": [], "positive_aspects": [], "metabolic_status": "Değerlendirilemedi", "nutritional_status": "Değerlendirilemedi"}}, "overall_status": "geçici_bakım", "lifestyle_recommendations": {{"exercise": [], "nutrition": [], "sleep": [], "stress_management": []}}, "supplement_recommendations": [], "test_details": {{}}}}',
         "model_used": "fallback"
     }
